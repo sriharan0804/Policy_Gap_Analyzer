@@ -600,3 +600,74 @@ class GapAssessment(DomainModel):
     rationale: list[str] = Field(default_factory=list)
 
     requires_human_review: bool = True
+
+class GapConfidenceLevel(str, Enum):
+    """Human-readable confidence category."""
+
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class GapConfidenceComponents(DomainModel):
+    """Individual signals used to calculate confidence."""
+
+    requirement_extraction_score: float = Field(
+        ge=0.0,
+        le=1.0,
+    )
+
+    policy_extraction_score: float = Field(
+        ge=0.0,
+        le=1.0,
+    )
+
+    retrieval_score: float = Field(
+        ge=0.0,
+        le=1.0,
+    )
+
+    comparison_score: float = Field(
+        ge=0.0,
+        le=1.0,
+    )
+
+    evidence_completeness_score: float = Field(
+        ge=0.0,
+        le=1.0,
+    )
+
+    evidence_quantity_score: float = Field(
+        ge=0.0,
+        le=1.0,
+    )
+
+
+class GapConfidenceAssessment(DomainModel):
+    """Explainable confidence assessment for one gap result."""
+
+    confidence_id: UUID = Field(default_factory=uuid4)
+
+    gap_assessment_id: UUID
+    requirement_id: UUID
+
+    confidence_score: float = Field(
+        ge=0.0,
+        le=1.0,
+    )
+
+    confidence_level: GapConfidenceLevel
+
+    components: GapConfidenceComponents
+
+    supporting_evidence_count: int = Field(ge=0)
+
+    positive_factors: list[str] = Field(
+        default_factory=list
+    )
+
+    limiting_factors: list[str] = Field(
+        default_factory=list
+    )
+
+    requires_human_review: bool = True

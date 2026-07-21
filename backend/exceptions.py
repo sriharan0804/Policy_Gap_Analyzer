@@ -91,3 +91,14 @@ class GapComparisonError(Exception):
 
 class MissingComparisonEvidenceError(GapComparisonError):
     """Raised when a comparison cannot be performed without evidence."""
+
+class ConfidenceScoringError(Exception):
+    """Base exception for confidence scoring failures."""
+
+
+class MissingGapEvidenceError(ConfidenceScoringError):
+    """Raised when required gap evidence is unavailable."""
+
+
+class InvalidRetrievalScoreError(ConfidenceScoringError):
+    """Raised when a retrieval score is outside the supported range."""
