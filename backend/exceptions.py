@@ -102,3 +102,10 @@ class MissingGapEvidenceError(ConfidenceScoringError):
 
 class InvalidRetrievalScoreError(ConfidenceScoringError):
     """Raised when a retrieval score is outside the supported range."""
+
+class RiskScoringError(Exception):
+    """Base exception for risk scoring failures."""
+
+
+class InvalidRiskInputError(RiskScoringError):
+    """Raised when risk inputs are invalid."""

@@ -671,3 +671,57 @@ class GapConfidenceAssessment(DomainModel):
     )
 
     requires_human_review: bool = True
+
+
+
+class RiskLevel(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class RegulatoryImpact(str, Enum):
+    LOW = "low"
+    MODERATE = "moderate"
+    HIGH = "high"
+    SEVERE = "severe"
+
+
+class DataSensitivity(str, Enum):
+    NONE = "none"
+    INTERNAL = "internal"
+    CONFIDENTIAL = "confidential"
+    PERSONAL = "personal"
+    HIGHLY_SENSITIVE = "highly_sensitive"
+
+
+class GapRiskComponents(DomainModel):
+    """Individual signals used to calculate gap risk."""
+
+    gap_severity_score: float = Field(ge=0.0, le=1.0)
+    regulatory_impact_score: float = Field(ge=0.0, le=1.0)
+    requirement_criticality_score: float = Field(ge=0.0, le=1.0)
+    data_sensitivity_score: float = Field(ge=0.0, le=1.0)
+    confidence_reliability_score: float = Field(ge=0.0, le=1.0)
+    contradiction_score: float = Field(ge=0.0, le=1.0)
+
+class GapRiskAssessment(DomainModel):
+    risk_assessment_id: UUID = Field(default_factory=uuid4)
+
+    gap_assessment_id: UUID
+    requirement_id: UUID
+
+    risk_score: float = Field(ge=0.0, le=1.0)
+    risk_level: RiskLevel
+
+    components: GapRiskComponents
+
+    regulatory_impact: RegulatoryImpact
+    data_sensitivity: DataSensitivity
+
+    risk_factors: list[str] = Field(default_factory=list)
+    mitigating_factors: list[str] = Field(default_factory=list)
+
+    remediation_priority: str
+    requires_human_review: bool = True
