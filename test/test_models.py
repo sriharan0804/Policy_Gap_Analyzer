@@ -1,5 +1,3 @@
-
-
 from datetime import date, datetime, timezone
 from uuid import uuid4
 
@@ -27,14 +25,14 @@ from backend.models import (
     SourceLocation,
     ValidationResult,
     ValidationStatus,
+    AnalysisResult,
 )
-
 
 VALID_CHECKSUM = "a" * 64
 
 
 def build_regulatory_evidence(document_id):
- 
+
     return Evidence(
         location=SourceLocation(
             document_id=document_id,
@@ -47,7 +45,7 @@ def build_regulatory_evidence(document_id):
 
 
 def build_policy_evidence(document_id):
- 
+
     return Evidence(
         location=SourceLocation(
             document_id=document_id,
@@ -62,16 +60,14 @@ def build_policy_evidence(document_id):
 
 
 def build_requirement():
- 
+
     regulation_id = uuid4()
     evidence = build_regulatory_evidence(regulation_id)
 
     return RegulatoryRequirement(
         document_id=regulation_id,
         requirement_text="The firm must retain required records.",
-        normalized_requirement=(
-            "Retain required records for the prescribed duration."
-        ),
+        normalized_requirement=("Retain required records for the prescribed duration."),
         requirement_type=RequirementType.RECORDKEEPING,
         modality=RequirementModality.MANDATORY,
         source_evidence=evidence,
@@ -82,7 +78,7 @@ def build_requirement():
 
 
 def build_confidence():
-  
+
     return ConfidenceAssessment(
         score=0.80,
         components=ConfidenceComponents(
@@ -98,7 +94,7 @@ def build_confidence():
 
 
 def build_risk():
-  
+
     return RiskAssessment(
         score=65,
         level=RiskLevel.HIGH,
@@ -117,7 +113,7 @@ def build_risk():
 
 
 def test_regulation_requires_issuing_authority():
- 
+
     with pytest.raises(
         ValidationError,
         match="issuing_authority is required",
@@ -132,7 +128,7 @@ def test_regulation_requires_issuing_authority():
 
 
 def test_effective_date_cannot_precede_publication_date():
-  
+
     with pytest.raises(
         ValidationError,
         match="effective_date cannot be earlier",
@@ -150,7 +146,7 @@ def test_effective_date_cannot_precede_publication_date():
 
 
 def test_processed_document_requires_processed_timestamp():
-  
+
     with pytest.raises(
         ValidationError,
         match="processed_at is required",
@@ -166,7 +162,7 @@ def test_processed_document_requires_processed_timestamp():
 
 
 def test_requirement_evidence_must_reference_same_document():
- 
+
     requirement_document_id = uuid4()
     unrelated_document_id = uuid4()
 
@@ -180,9 +176,7 @@ def test_requirement_evidence_must_reference_same_document():
             normalized_requirement="Retain required records.",
             requirement_type=RequirementType.RECORDKEEPING,
             modality=RequirementModality.MANDATORY,
-            source_evidence=build_regulatory_evidence(
-                unrelated_document_id
-            ),
+            source_evidence=build_regulatory_evidence(unrelated_document_id),
             extraction_confidence=0.90,
             extraction_model="test-model",
             prompt_version="extract-v1",
@@ -190,7 +184,7 @@ def test_requirement_evidence_must_reference_same_document():
 
 
 def test_covered_finding_requires_policy_evidence():
-  
+
     with pytest.raises(
         ValidationError,
         match="covered requires policy evidence",
@@ -214,7 +208,7 @@ def test_covered_finding_requires_policy_evidence():
 
 
 def test_valid_partially_covered_finding():
-  
+
     policy_id = uuid4()
 
     finding = Finding(
@@ -247,7 +241,7 @@ def test_valid_partially_covered_finding():
 
 
 def test_completed_review_requires_reviewer_metadata():
- 
+
     with pytest.raises(
         ValidationError,
         match="reviewer_id is required",
@@ -259,7 +253,7 @@ def test_completed_review_requires_reviewer_metadata():
 
 
 def test_failed_validation_requires_failed_check():
-  
+
     with pytest.raises(
         ValidationError,
         match="must contain at least one failed check",
@@ -269,3 +263,28 @@ def test_failed_validation_requires_failed_check():
             checks_run=["policy_evidence_present"],
             failed_checks=[],
         )
+
+
+def test_analysis_result_can_be_created():
+    regulatory_document_id = uuid4()
+    policy_document_id = uuid4()
+
+    result = AnalysisResult(
+        regulatory_document_id=regulatory_document_id,
+        policy_document_id=policy_document_id,
+        requirements=[],
+        policy_statements=[],
+        gap_assessments=[],
+        confidence_assessments=[],
+        risk_assessments=[],
+    )
+
+    assert result.regulatory_document_id == regulatory_document_id
+    assert result.policy_document_id == policy_document_id
+    assert result.requirements == []
+    assert result.policy_statements == []
+    assert result.gap_assessments == []
+    assert result.confidence_assessments == []
+    assert result.risk_assessments == []
+    assert result.analysis_id is not None
+    assert result.created_at is not None

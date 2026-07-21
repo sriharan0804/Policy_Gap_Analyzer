@@ -46,18 +46,12 @@ def build_retrieval_service(
 ) -> RetrievalService:
     """Build a retrieval service with indexed fake embeddings."""
 
-    embedder = DeterministicFakeEmbeddingService(
-        dimension=dimension
-    )
+    embedder = DeterministicFakeEmbeddingService(dimension=dimension)
 
-    vector_store = FaissVectorStore(
-        dimension=dimension
-    )
+    vector_store = FaissVectorStore(dimension=dimension)
 
     if chunks:
-        embeddings = embedder.embed_texts(
-            [chunk.text for chunk in chunks]
-        )
+        embeddings = embedder.embed_texts([chunk.text for chunk in chunks])
 
         vector_store.add(
             chunks=chunks,
@@ -147,20 +141,14 @@ def test_results_are_sorted_by_similarity():
         minimum_score=None,
     )
 
-    scores = [
-        result.similarity_score
-        for result in results
-    ]
+    scores = [result.similarity_score for result in results]
 
     assert scores == sorted(
         scores,
         reverse=True,
     )
 
-    assert [
-        result.rank
-        for result in results
-    ] == [1, 2, 3]
+    assert [result.rank for result in results] == [1, 2, 3]
 
 
 def test_minimum_score_filters_results():
@@ -241,9 +229,7 @@ def test_empty_vector_store_raises_error():
     with pytest.raises(
         EmptyVectorStoreError,
     ):
-        service.retrieve(
-            "record retention requirement"
-        )
+        service.retrieve("record retention requirement")
 
 
 @pytest.mark.parametrize(
@@ -311,13 +297,9 @@ def test_invalid_minimum_score_is_rejected(
 def test_dimension_mismatch_is_rejected():
     """Embedder and vector store dimensions must match."""
 
-    embedder = DeterministicFakeEmbeddingService(
-        dimension=8
-    )
+    embedder = DeterministicFakeEmbeddingService(dimension=8)
 
-    vector_store = FaissVectorStore(
-        dimension=16
-    )
+    vector_store = FaissVectorStore(dimension=16)
 
     with pytest.raises(
         ValueError,

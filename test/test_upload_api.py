@@ -1,11 +1,9 @@
-
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from backend.config import Settings, get_settings
 from backend.main import app
-
 
 MINIMAL_PDF = (
     b"%PDF-1.4\n"
@@ -19,7 +17,7 @@ MINIMAL_PDF = (
 
 
 def create_test_settings(tmp_path: Path) -> Settings:
-  
+
     return Settings(
         app_env="test",
         data_directory=tmp_path,
@@ -32,7 +30,7 @@ def create_test_settings(tmp_path: Path) -> Settings:
 
 
 def test_health_endpoint(tmp_path: Path):
-   
+
     settings = create_test_settings(tmp_path)
 
     app.dependency_overrides[get_settings] = lambda: settings
@@ -49,7 +47,7 @@ def test_health_endpoint(tmp_path: Path):
 
 
 def test_upload_policy_pdf(tmp_path: Path):
-   
+
     settings = create_test_settings(tmp_path)
 
     app.dependency_overrides[get_settings] = lambda: settings
@@ -76,17 +74,14 @@ def test_upload_policy_pdf(tmp_path: Path):
         payload = response.json()
 
         assert payload["document"]["document_type"] == "policy"
-        assert (
-            payload["document"]["original_filename"]
-            == "Records Policy.pdf"
-        )
+        assert payload["document"]["original_filename"] == "Records Policy.pdf"
 
     finally:
         app.dependency_overrides.clear()
 
 
 def test_reject_invalid_upload(tmp_path: Path):
-  
+
     settings = create_test_settings(tmp_path)
 
     app.dependency_overrides[get_settings] = lambda: settings

@@ -2,9 +2,7 @@
 
 from uuid import uuid4
 
-import pytest
 
-from backend.exceptions import EmptyRequirementTextError
 from backend.models import (
     DocumentChunk,
     RequirementModality,
@@ -65,23 +63,15 @@ def test_extracts_mandatory_requirement():
 
     requirement = results[0]
 
-    assert requirement.modality == (
-        RequirementModality.MANDATORY
-    )
+    assert requirement.modality == (RequirementModality.MANDATORY)
 
-    assert requirement.subject == (
-        "Each broker-dealer"
-    )
+    assert requirement.subject == ("Each broker-dealer")
 
     assert requirement.action == "preserve"
 
-    assert requirement.object == (
-        "customer account records for at least six years"
-    )
+    assert requirement.object == ("customer account records for at least six years")
 
-    assert requirement.timing == (
-        "for at least six years"
-    )
+    assert requirement.timing == ("for at least six years")
 
     assert requirement.page_number == 4
     assert requirement.chunk_index == 7
@@ -103,9 +93,7 @@ def test_extracts_prohibition():
     results = service.extract_from_chunk(chunk)
 
     assert len(results) == 1
-    assert results[0].modality == (
-        RequirementModality.PROHIBITED
-    )
+    assert results[0].modality == (RequirementModality.PROHIBITED)
     assert results[0].matched_trigger == "must not"
     assert results[0].action == "disclose"
 
@@ -115,8 +103,7 @@ def test_extracts_required_to_phrase():
 
     chunk = make_chunk(
         text=(
-            "Member firms are required to maintain "
-            "written supervisory procedures."
+            "Member firms are required to maintain " "written supervisory procedures."
         )
     )
 
@@ -125,12 +112,8 @@ def test_extracts_required_to_phrase():
     results = service.extract_from_chunk(chunk)
 
     assert len(results) == 1
-    assert results[0].modality == (
-        RequirementModality.MANDATORY
-    )
-    assert results[0].matched_trigger == (
-        "are required to"
-    )
+    assert results[0].modality == (RequirementModality.MANDATORY)
+    assert results[0].matched_trigger == ("are required to")
     assert results[0].action == "maintain"
 
 
@@ -138,10 +121,7 @@ def test_extracts_condition():
     """Conditional requirement phrases should be preserved."""
 
     chunk = make_chunk(
-        text=(
-            "The firm must notify the customer "
-            "if account information changes."
-        )
+        text=("The firm must notify the customer " "if account information changes.")
     )
 
     service = RuleBasedRequirementExtractionService()
@@ -149,9 +129,7 @@ def test_extracts_condition():
     results = service.extract_from_chunk(chunk)
 
     assert len(results) == 1
-    assert results[0].condition == (
-        "if account information changes"
-    )
+    assert results[0].condition == ("if account information changes")
 
 
 def test_extracts_timing():
@@ -169,9 +147,7 @@ def test_extracts_timing():
     results = service.extract_from_chunk(chunk)
 
     assert len(results) == 1
-    assert results[0].timing == (
-        "within 30 business days"
-    )
+    assert results[0].timing == ("within 30 business days")
 
 
 def test_non_requirement_sentence_returns_empty_list():
@@ -179,8 +155,7 @@ def test_non_requirement_sentence_returns_empty_list():
 
     chunk = make_chunk(
         text=(
-            "The organization was founded in 1998 "
-            "and operates in several regions."
+            "The organization was founded in 1998 " "and operates in several regions."
         )
     )
 
@@ -214,37 +189,25 @@ def test_extracts_multiple_requirements():
 def test_prohibition_trigger_has_priority():
     """Longer negative triggers must be checked before shorter triggers."""
 
-    chunk = make_chunk(
-        text=(
-            "Employees shall not alter approved records."
-        )
-    )
+    chunk = make_chunk(text=("Employees shall not alter approved records."))
 
     service = RuleBasedRequirementExtractionService()
 
     results = service.extract_from_chunk(chunk)
 
     assert len(results) == 1
-    assert results[0].modality == (
-        RequirementModality.PROHIBITED
-    )
-    assert results[0].matched_trigger == (
-        "shall not"
-    )
+    assert results[0].modality == (RequirementModality.PROHIBITED)
+    assert results[0].matched_trigger == ("shall not")
 
 
 def test_normal_text_is_accepted():
     """A valid chunk should be processed without extraction errors."""
 
-    chunk = make_chunk(
-        text="The firm must maintain records."
-    )
+    chunk = make_chunk(text="The firm must maintain records.")
 
     service = RuleBasedRequirementExtractionService()
 
-    results = service.extract_from_chunk(
-        chunk
-    )
+    results = service.extract_from_chunk(chunk)
 
     assert len(results) == 1
 
@@ -265,9 +228,7 @@ def test_extract_from_chunks_preserves_order():
 
     service = RuleBasedRequirementExtractionService()
 
-    results = service.extract_from_chunks(
-        chunks
-    )
+    results = service.extract_from_chunks(chunks)
 
     assert len(results) == 2
     assert results[0].chunk_index == 0
@@ -277,26 +238,20 @@ def test_extract_from_chunks_preserves_order():
 def test_confidence_remains_in_valid_range():
     """Extraction confidence should always remain between zero and one."""
 
-    chunk = make_chunk(
-        text="The firm must maintain records."
-    )
+    chunk = make_chunk(text="The firm must maintain records.")
 
     service = RuleBasedRequirementExtractionService()
 
-    result = service.extract_from_chunk(
-        chunk
-    )[0]
+    result = service.extract_from_chunk(chunk)[0]
 
     assert 0.0 <= result.extraction_confidence <= 1.0
+
 
 def test_extracts_word_based_duration():
     """Durations written as words should be captured."""
 
     chunk = make_chunk(
-        text=(
-            "The firm must retain account records "
-            "for at least six years."
-        )
+        text=("The firm must retain account records " "for at least six years.")
     )
 
     service = RuleBasedRequirementExtractionService()
@@ -304,6 +259,4 @@ def test_extracts_word_based_duration():
     results = service.extract_from_chunk(chunk)
 
     assert len(results) == 1
-    assert results[0].timing == (
-        "for at least six years"
-    )
+    assert results[0].timing == ("for at least six years")

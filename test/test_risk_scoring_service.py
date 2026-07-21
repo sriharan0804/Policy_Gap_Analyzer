@@ -9,7 +9,6 @@ from backend.models import (
     GapConfidenceComponents,
     GapConfidenceLevel,
     GapStatus,
-    PolicyMatch,
     RegulatoryImpact,
     RequirementCandidate,
     RequirementModality,
@@ -30,21 +29,21 @@ def build_requirement(
     condition: str | None = None,
 ) -> RequirementCandidate:
     return RequirementCandidate(
-    requirement_id=uuid4(),
-    chunk_id=uuid4(),
-    document_id=uuid4(),
-    page_number=1,
-    chunk_index=0,
-    source_text="The organization must retain records.",
-    modality=modality,
-    matched_trigger="must",
-    subject="the organization",
-    action="retain",
-    object="records",
-    timing=timing,
-    condition=condition,
-    extraction_confidence=0.92,
-)
+        requirement_id=uuid4(),
+        chunk_id=uuid4(),
+        document_id=uuid4(),
+        page_number=1,
+        chunk_index=0,
+        source_text="The organization must retain records.",
+        modality=modality,
+        matched_trigger="must",
+        subject="the organization",
+        action="retain",
+        object="records",
+        timing=timing,
+        condition=condition,
+        extraction_confidence=0.92,
+    )
 
 
 def build_gap(
@@ -55,23 +54,14 @@ def build_gap(
 ) -> GapAssessment:
     return GapAssessment(
         assessment_id=uuid4(),
-
         requirement_id=requirement.requirement_id,
         regulatory_document_id=requirement.document_id,
         regulatory_chunk_id=requirement.chunk_id,
-
         status=status,
-
         deterministic_score=score,
-
         best_match=None,
-
         evaluated_policy_count=0,
-
-        rationale=[
-            "Deterministic comparison result."
-        ],
-
+        rationale=["Deterministic comparison result."],
         requires_human_review=False,
     )
 
@@ -86,9 +76,7 @@ def build_confidence(
     level = (
         GapConfidenceLevel.HIGH
         if score >= 0.80
-        else GapConfidenceLevel.MEDIUM
-        if score >= 0.55
-        else GapConfidenceLevel.LOW
+        else GapConfidenceLevel.MEDIUM if score >= 0.55 else GapConfidenceLevel.LOW
     )
 
     return GapConfidenceAssessment(
@@ -198,10 +186,7 @@ def test_contradiction_increases_risk():
 
     assert result.components.contradiction_score == 1.0
     assert result.requires_human_review is True
-    assert any(
-        "contradicts" in factor.lower()
-        for factor in result.risk_factors
-    )
+    assert any("contradicts" in factor.lower() for factor in result.risk_factors)
 
 
 def test_sensitive_data_increases_risk_score():
@@ -300,8 +285,7 @@ def test_low_confidence_finding_requires_human_review():
 
     assert result.requires_human_review is True
     assert any(
-        "limited confidence" in factor.lower()
-        for factor in result.mitigating_factors
+        "limited confidence" in factor.lower() for factor in result.mitigating_factors
     )
 
 
@@ -329,10 +313,7 @@ def test_required_timing_is_reported_as_risk_factor():
         data_sensitivity=DataSensitivity.INTERNAL,
     )
 
-    assert any(
-        "timing" in factor.lower()
-        for factor in result.risk_factors
-    )
+    assert any("timing" in factor.lower() for factor in result.risk_factors)
 
 
 def test_weights_must_sum_to_one():

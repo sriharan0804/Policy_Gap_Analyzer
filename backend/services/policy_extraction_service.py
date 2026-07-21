@@ -191,9 +191,7 @@ class RuleBasedPolicyExtractionService:
         statements: list[PolicyStatement] = []
 
         for chunk in chunks:
-            statements.extend(
-                self.extract_from_chunk(chunk)
-            )
+            statements.extend(self.extract_from_chunk(chunk))
 
         return statements
 
@@ -211,9 +209,7 @@ class RuleBasedPolicyExtractionService:
             trigger_phrase=trigger.phrase,
         )
 
-        action, object_text = self._extract_action_and_object(
-            remainder
-        )
+        action, object_text = self._extract_action_and_object(remainder)
 
         timing = self._extract_first_match(
             text=sentence,
@@ -225,9 +221,7 @@ class RuleBasedPolicyExtractionService:
             patterns=self._CONDITION_PATTERNS,
         )
 
-        responsible_party = self._extract_responsible_party(
-            sentence
-        )
+        responsible_party = self._extract_responsible_party(sentence)
 
         statement_type = self._refine_statement_type(
             base_type=trigger.statement_type,
@@ -294,8 +288,8 @@ class RuleBasedPolicyExtractionService:
         if match is None:
             return None, sentence.strip()
 
-        subject = sentence[:match.start()].strip(" ,;:")
-        remainder = sentence[match.end():].strip(" ,;:")
+        subject = sentence[: match.start()].strip(" ,;:")
+        remainder = sentence[match.end() :].strip(" ,;:")
 
         return subject or None, remainder
 
@@ -358,17 +352,14 @@ class RuleBasedPolicyExtractionService:
 
         lowered = sentence.lower()
 
-        if (
-            "retain" in lowered
-            or "preserve" in lowered
-            or "retention" in lowered
-        ):
+        if "retain" in lowered or "preserve" in lowered or "retention" in lowered:
             return PolicyStatementType.RECORD_RETENTION
 
         if (
             "review" in lowered
             or "audit" in lowered
-            or timing in {
+            or timing
+            in {
                 "daily",
                 "weekly",
                 "monthly",

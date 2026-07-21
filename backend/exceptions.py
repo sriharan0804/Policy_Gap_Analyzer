@@ -44,6 +44,7 @@ class EncryptedPDFError(PDFParsingError):
 class CorruptedPDFError(PDFParsingError):
     """Raised when a PDF cannot be opened or parsed."""
 
+
 class EmbeddingError(Exception):
     """Base exception for embedding generation failures."""
 
@@ -54,6 +55,7 @@ class EmptyEmbeddingInputError(EmbeddingError):
 
 class EmbeddingModelError(EmbeddingError):
     """Raised when the embedding model cannot generate vectors."""
+
 
 class VectorStoreError(Exception):
     """Base exception for vector-index failures."""
@@ -70,6 +72,7 @@ class EmptyVectorStoreError(VectorStoreError):
 class VectorStorePersistenceError(VectorStoreError):
     """Raised when an index cannot be saved or loaded."""
 
+
 class RequirementExtractionError(Exception):
     """Base exception for regulatory requirement extraction."""
 
@@ -85,12 +88,14 @@ class PolicyExtractionError(Exception):
 class EmptyPolicyTextError(PolicyExtractionError):
     """Raised when policy extraction receives unusable text."""
 
+
 class GapComparisonError(Exception):
     """Base exception for policy gap comparison failures."""
 
 
 class MissingComparisonEvidenceError(GapComparisonError):
     """Raised when a comparison cannot be performed without evidence."""
+
 
 class ConfidenceScoringError(Exception):
     """Base exception for confidence scoring failures."""
@@ -102,6 +107,7 @@ class MissingGapEvidenceError(ConfidenceScoringError):
 
 class InvalidRetrievalScoreError(ConfidenceScoringError):
     """Raised when a retrieval score is outside the supported range."""
+
 
 class RiskScoringError(Exception):
     """Base exception for risk scoring failures."""

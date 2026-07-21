@@ -1,5 +1,3 @@
-
-
 from __future__ import annotations
 
 import re
@@ -14,7 +12,6 @@ from backend.exceptions import (
     PDFNotFoundError,
 )
 from backend.models import ParsedDocument, ParsedPage
-
 
 MULTIPLE_SPACES_PATTERN = re.compile(r"[ \t]+")
 EXCESSIVE_NEWLINES_PATTERN = re.compile(r"\n{3,}")
@@ -31,9 +28,7 @@ class PDFParserService:
         """
 
         if minimum_text_characters < 0:
-            raise ValueError(
-                "minimum_text_characters cannot be negative."
-            )
+            raise ValueError("minimum_text_characters cannot be negative.")
 
         self._minimum_text_characters = minimum_text_characters
 
@@ -67,28 +62,20 @@ class PDFParserService:
         """
 
         if not file_path.exists():
-            raise PDFNotFoundError(
-                f"PDF not found: {file_path}"
-            )
+            raise PDFNotFoundError(f"PDF not found: {file_path}")
 
         if not file_path.is_file():
-            raise PDFNotFoundError(
-                f"PDF path is not a file: {file_path}"
-            )
+            raise PDFNotFoundError(f"PDF path is not a file: {file_path}")
 
         try:
             document = fitz.open(file_path)
 
         except (fitz.FileDataError, RuntimeError, ValueError) as exc:
-            raise CorruptedPDFError(
-                "The PDF could not be opened."
-            ) from exc
+            raise CorruptedPDFError("The PDF could not be opened.") from exc
 
         try:
             if document.needs_pass:
-                raise EncryptedPDFError(
-                    "Password-protected PDFs are not supported."
-                )
+                raise EncryptedPDFError("Password-protected PDFs are not supported.")
 
             pages: list[ParsedPage] = []
 
@@ -105,9 +92,7 @@ class PDFParserService:
                 character_count = len(normalized_text)
                 is_empty = character_count == 0
 
-                may_require_ocr = (
-                    character_count < self._minimum_text_characters
-                )
+                may_require_ocr = character_count < self._minimum_text_characters
 
                 pages.append(
                     ParsedPage(
@@ -119,17 +104,11 @@ class PDFParserService:
                     )
                 )
 
-            extracted_character_count = sum(
-                page.character_count for page in pages
-            )
+            extracted_character_count = sum(page.character_count for page in pages)
 
-            empty_page_count = sum(
-                1 for page in pages if page.is_empty
-            )
+            empty_page_count = sum(1 for page in pages if page.is_empty)
 
-            requires_ocr = any(
-                page.may_require_ocr for page in pages
-            )
+            requires_ocr = any(page.may_require_ocr for page in pages)
 
             return ParsedDocument(
                 document_id=document_id,

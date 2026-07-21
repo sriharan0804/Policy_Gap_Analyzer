@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import hashlib
@@ -19,7 +18,6 @@ from backend.models import (
     IssuingAuthority,
 )
 
-
 PDF_MIME_TYPES = {
     "application/pdf",
     "application/x-pdf",
@@ -31,9 +29,9 @@ SAFE_FILENAME_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 class DocumentService:
-    
+
     def __init__(self, settings: Settings) -> None:
-       
+
         self._settings = settings
 
     def register_document(
@@ -98,9 +96,7 @@ class DocumentService:
             checksum=checksum,
         )
 
-        destination_directory = self._directory_for_document_type(
-            document_type
-        )
+        destination_directory = self._directory_for_document_type(document_type)
         destination_directory.mkdir(parents=True, exist_ok=True)
 
         destination_path = destination_directory / stored_filename
@@ -129,11 +125,11 @@ class DocumentService:
 
     @staticmethod
     def calculate_sha256(file_content: bytes) -> str:
-      
+
         return hashlib.sha256(file_content).hexdigest()
 
     def _validate_filename(self, original_filename: str) -> None:
-      
+
         if not original_filename or not original_filename.strip():
             raise InvalidDocumentError("A filename is required.")
 
@@ -148,7 +144,7 @@ class DocumentService:
             raise InvalidDocumentError("The filename is invalid.")
 
     def _validate_file_size(self, file_content: bytes) -> None:
-     
+
         if not file_content:
             raise InvalidDocumentError("The uploaded document is empty.")
 
@@ -167,14 +163,11 @@ class DocumentService:
         original_filename: str,
         content_type: str | None,
     ) -> None:
-       
 
         suffix = Path(original_filename).suffix.lower()
 
         if suffix != ".pdf":
-            raise UnsupportedDocumentTypeError(
-                "Only PDF documents are supported."
-            )
+            raise UnsupportedDocumentTypeError("Only PDF documents are supported.")
 
         if content_type and content_type.lower() not in PDF_MIME_TYPES:
             raise UnsupportedDocumentTypeError(
@@ -192,7 +185,7 @@ class DocumentService:
         original_filename: str,
         checksum: str,
     ) -> str:
-       
+
         original_stem = Path(original_filename).stem
         safe_stem = SAFE_FILENAME_PATTERN.sub("_", original_stem)
         safe_stem = safe_stem.strip("._-") or "document"
@@ -209,7 +202,7 @@ class DocumentService:
         self,
         document_type: DocumentType,
     ) -> Path:
-       
+
         if document_type == DocumentType.REGULATION:
             return self._settings.regulation_directory
 
@@ -221,7 +214,6 @@ class DocumentService:
         destination_path: Path,
         file_content: bytes,
     ) -> None:
-        
 
         temporary_path = destination_path.with_suffix(".tmp")
 
@@ -236,6 +228,4 @@ class DocumentService:
             temporary_path.unlink(missing_ok=True)
             destination_path.unlink(missing_ok=True)
 
-            raise DocumentStorageError(
-                "The document could not be stored."
-            ) from exc
+            raise DocumentStorageError("The document could not be stored.") from exc

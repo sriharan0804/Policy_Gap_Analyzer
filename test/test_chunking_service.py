@@ -53,16 +53,11 @@ def test_short_page_creates_one_chunk():
     assert chunks[0].document_id == document_id
     assert chunks[0].page_number == 1
     assert chunks[0].chunk_index == 0
-    assert chunks[0].text == (
-        "The firm must retain customer records."
-    )
+    assert chunks[0].text == ("The firm must retain customer records.")
 
 
 def test_long_page_creates_overlapping_chunks():
-    text = " ".join(
-        f"requirement-{index}"
-        for index in range(100)
-    )
+    text = " ".join(f"requirement-{index}" for index in range(100))
 
     page = make_page(
         page_number=3,
@@ -124,9 +119,7 @@ def test_chunk_indexes_continue_across_pages():
 
     chunks = service.chunk_document(parsed)
 
-    assert [
-        chunk.chunk_index for chunk in chunks
-    ] == list(range(len(chunks)))
+    assert [chunk.chunk_index for chunk in chunks] == list(range(len(chunks)))
 
 
 def test_empty_pages_are_skipped():

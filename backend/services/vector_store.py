@@ -17,7 +17,6 @@ from backend.exceptions import (
 )
 from backend.models import DocumentChunk, RetrievedChunk
 
-
 FloatMatrix = NDArray[np.float32]
 
 
@@ -30,9 +29,7 @@ class FaissVectorStore:
 
     def __init__(self, *, dimension: int) -> None:
         if dimension <= 0:
-            raise ValueError(
-                "dimension must be greater than zero."
-            )
+            raise ValueError("dimension must be greater than zero.")
 
         self._dimension = dimension
 
@@ -63,9 +60,7 @@ class FaissVectorStore:
         """Add chunks and their vectors in matching order."""
 
         if not chunks:
-            raise ValueError(
-                "At least one chunk is required."
-            )
+            raise ValueError("At least one chunk is required.")
 
         matrix = np.asarray(
             embeddings,
@@ -92,14 +87,10 @@ class FaissVectorStore:
         """Return the most similar chunks ordered by score."""
 
         if self.size == 0:
-            raise EmptyVectorStoreError(
-                "Cannot search an empty vector store."
-            )
+            raise EmptyVectorStoreError("Cannot search an empty vector store.")
 
         if top_k <= 0:
-            raise ValueError(
-                "top_k must be greater than zero."
-            )
+            raise ValueError("top_k must be greater than zero.")
 
         query_matrix = np.asarray(
             query_embedding,
@@ -108,9 +99,7 @@ class FaissVectorStore:
 
         self._validate_query_matrix(query_matrix)
 
-        normalized_query = self._normalize_vectors(
-            query_matrix
-        )
+        normalized_query = self._normalize_vectors(query_matrix)
 
         result_count = min(top_k, self.size)
 
@@ -132,10 +121,7 @@ class FaissVectorStore:
                 -1.0,
                 min(1.0, float(score)),
             )
-            if (
-                minimum_score is not None
-                and similarity_score < minimum_score
-            ):
+            if minimum_score is not None and similarity_score < minimum_score:
                 continue
 
             results.append(
@@ -159,14 +145,10 @@ class FaissVectorStore:
         """
 
         retained_chunks = [
-            chunk
-            for chunk in self._chunks
-            if chunk.document_id != document_id
+            chunk for chunk in self._chunks if chunk.document_id != document_id
         ]
 
-        removed_count = len(self._chunks) - len(
-            retained_chunks
-        )
+        removed_count = len(self._chunks) - len(retained_chunks)
 
         if removed_count == 0:
             return 0
@@ -179,15 +161,11 @@ class FaissVectorStore:
             if chunk.document_id != document_id
         ]
 
-        self._index = faiss.IndexFlatIP(
-            self._dimension
-        )
+        self._index = faiss.IndexFlatIP(self._dimension)
         self._chunks = retained_chunks
 
         if retained_positions:
-            rebuilt_matrix = retained_vectors[
-                retained_positions
-            ]
+            rebuilt_matrix = retained_vectors[retained_positions]
 
             self._index.add(
                 np.asarray(
@@ -224,12 +202,7 @@ class FaissVectorStore:
 
             metadata = {
                 "dimension": self._dimension,
-                "chunks": [
-                    chunk.model_dump(
-                        mode="json"
-                    )
-                    for chunk in self._chunks
-                ],
+                "chunks": [chunk.model_dump(mode="json") for chunk in self._chunks],
             }
 
             metadata_path.write_text(
@@ -256,32 +229,18 @@ class FaissVectorStore:
 
         try:
             if not index_path.exists():
-                raise FileNotFoundError(
-                    f"Index file not found: {index_path}"
-                )
+                raise FileNotFoundError(f"Index file not found: {index_path}")
 
             if not metadata_path.exists():
-                raise FileNotFoundError(
-                    f"Metadata file not found: {metadata_path}"
-                )
+                raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
 
-            metadata = json.loads(
-                metadata_path.read_text(
-                    encoding="utf-8"
-                )
-            )
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
 
-            dimension = int(
-                metadata["dimension"]
-            )
+            dimension = int(metadata["dimension"])
 
-            store = cls(
-                dimension=dimension
-            )
+            store = cls(dimension=dimension)
 
-            loaded_index = faiss.read_index(
-                str(index_path)
-            )
+            loaded_index = faiss.read_index(str(index_path))
 
             if loaded_index.d != dimension:
                 raise VectorDimensionError(
@@ -289,9 +248,7 @@ class FaissVectorStore:
                 )
 
             chunks = [
-                DocumentChunk.model_validate(
-                    chunk_data
-                )
+                DocumentChunk.model_validate(chunk_data)
                 for chunk_data in metadata["chunks"]
             ]
 
@@ -332,14 +289,10 @@ class FaissVectorStore:
         """Validate vectors before indexing."""
 
         if matrix.ndim != 2:
-            raise VectorDimensionError(
-                "Embeddings must be a two-dimensional matrix."
-            )
+            raise VectorDimensionError("Embeddings must be a two-dimensional matrix.")
 
         if matrix.shape[0] != expected_rows:
-            raise VectorDimensionError(
-                "Embedding count must match chunk count."
-            )
+            raise VectorDimensionError("Embedding count must match chunk count.")
 
         if matrix.shape[1] != self._dimension:
             raise VectorDimensionError(
@@ -347,9 +300,7 @@ class FaissVectorStore:
             )
 
         if not np.isfinite(matrix).all():
-            raise VectorDimensionError(
-                "Embeddings contain non-finite values."
-            )
+            raise VectorDimensionError("Embeddings contain non-finite values.")
 
     def _validate_query_matrix(
         self,
@@ -358,9 +309,7 @@ class FaissVectorStore:
         """Require one query vector with the correct dimension."""
 
         if matrix.ndim != 2:
-            raise VectorDimensionError(
-                "Query embedding must be two-dimensional."
-            )
+            raise VectorDimensionError("Query embedding must be two-dimensional.")
 
         if matrix.shape != (1, self._dimension):
             raise VectorDimensionError(
@@ -369,9 +318,7 @@ class FaissVectorStore:
             )
 
         if not np.isfinite(matrix).all():
-            raise VectorDimensionError(
-                "Query embedding contains non-finite values."
-            )
+            raise VectorDimensionError("Query embedding contains non-finite values.")
 
     @staticmethod
     def _normalize_vectors(
@@ -392,9 +339,7 @@ class FaissVectorStore:
         )
 
         if np.any(norms == 0):
-            raise VectorDimensionError(
-                "Zero-length vectors cannot be indexed."
-            )
+            raise VectorDimensionError("Zero-length vectors cannot be indexed.")
 
         normalized /= norms
 
@@ -411,10 +356,7 @@ class FaissVectorStore:
                 dtype=np.float32,
             )
 
-        vectors = [
-            self._index.reconstruct(index)
-            for index in range(self.size)
-        ]
+        vectors = [self._index.reconstruct(index) for index in range(self.size)]
 
         return np.asarray(
             vectors,

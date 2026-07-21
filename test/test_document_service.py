@@ -1,4 +1,3 @@
-
 from pathlib import Path
 
 import pytest
@@ -15,7 +14,6 @@ from backend.models import (
 )
 from backend.services.document_service import DocumentService
 
-
 MINIMAL_PDF = (
     b"%PDF-1.4\n"
     b"1 0 obj\n"
@@ -29,7 +27,7 @@ MINIMAL_PDF = (
 
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
- 
+
     return Settings(
         app_env="test",
         data_directory=tmp_path,
@@ -43,12 +41,12 @@ def settings(tmp_path: Path) -> Settings:
 
 @pytest.fixture
 def service(settings: Settings) -> DocumentService:
- 
+
     return DocumentService(settings)
 
 
 def test_register_regulation(service: DocumentService, settings: Settings):
- 
+
     document = service.register_document(
         file_content=MINIMAL_PDF,
         original_filename="SEC Rule Test.pdf",
@@ -58,9 +56,7 @@ def test_register_regulation(service: DocumentService, settings: Settings):
         title="SEC Test Rule",
     )
 
-    stored_path = (
-        settings.regulation_directory / document.stored_filename
-    )
+    stored_path = settings.regulation_directory / document.stored_filename
 
     assert stored_path.exists()
     assert stored_path.read_bytes() == MINIMAL_PDF
@@ -72,7 +68,7 @@ def test_register_regulation(service: DocumentService, settings: Settings):
 
 
 def test_register_policy(service: DocumentService, settings: Settings):
-   
+
     document = service.register_document(
         file_content=MINIMAL_PDF,
         original_filename="Records Policy.pdf",
@@ -87,7 +83,7 @@ def test_register_policy(service: DocumentService, settings: Settings):
 
 
 def test_reject_empty_document(service: DocumentService):
- 
+
     with pytest.raises(
         InvalidDocumentError,
         match="empty",
@@ -101,7 +97,7 @@ def test_reject_empty_document(service: DocumentService):
 
 
 def test_reject_non_pdf_extension(service: DocumentService):
- 
+
     with pytest.raises(
         UnsupportedDocumentTypeError,
         match="Only PDF",
@@ -115,7 +111,7 @@ def test_reject_non_pdf_extension(service: DocumentService):
 
 
 def test_reject_invalid_pdf_signature(service: DocumentService):
-  
+
     with pytest.raises(
         UnsupportedDocumentTypeError,
         match="PDF signature",
@@ -131,7 +127,7 @@ def test_reject_invalid_pdf_signature(service: DocumentService):
 def test_reject_directory_traversal_filename(
     service: DocumentService,
 ):
-  
+
     with pytest.raises(
         InvalidDocumentError,
         match="directory path",
@@ -145,10 +141,8 @@ def test_reject_directory_traversal_filename(
 
 
 def test_reject_oversized_document(service: DocumentService):
- 
-    oversized_content = PDF_HEADER = b"%PDF-" + (
-        b"x" * (1024 * 1024)
-    )
+
+    oversized_content = b"%PDF-" + (b"x" * (1024 * 1024))
 
     with pytest.raises(
         DocumentTooLargeError,
@@ -163,7 +157,7 @@ def test_reject_oversized_document(service: DocumentService):
 
 
 def test_checksum_is_deterministic(service: DocumentService):
-   
+
     checksum_one = service.calculate_sha256(MINIMAL_PDF)
     checksum_two = service.calculate_sha256(MINIMAL_PDF)
 

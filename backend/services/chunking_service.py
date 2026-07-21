@@ -21,14 +21,10 @@ class ChunkingService:
             raise ValueError("chunk_size must be greater than zero.")
 
         if chunk_overlap < 0:
-            raise ValueError(
-                "chunk_overlap cannot be negative."
-            )
+            raise ValueError("chunk_overlap cannot be negative.")
 
         if chunk_overlap >= chunk_size:
-            raise ValueError(
-                "chunk_overlap must be smaller than chunk_size."
-            )
+            raise ValueError("chunk_overlap must be smaller than chunk_size.")
 
         self._chunk_size = chunk_size
         self._chunk_overlap = chunk_overlap
@@ -89,9 +85,9 @@ class ChunkingService:
             chunk_text = text[start:end].strip()
 
             if chunk_text:
-                leading_whitespace = len(
-                    text[start:end]
-                ) - len(text[start:end].lstrip())
+                leading_whitespace = len(text[start:end]) - len(
+                    text[start:end].lstrip()
+                )
 
                 actual_start = start + leading_whitespace
                 actual_end = actual_start + len(chunk_text)
@@ -100,9 +96,7 @@ class ChunkingService:
                     DocumentChunk(
                         document_id=document_id,
                         page_number=page_number,
-                        chunk_index=(
-                            starting_chunk_index + local_index
-                        ),
+                        chunk_index=(starting_chunk_index + local_index),
                         text=chunk_text,
                         character_count=len(chunk_text),
                         start_character=actual_start,
@@ -136,9 +130,7 @@ class ChunkingService:
 
         search_region = text[start:proposed_end]
 
-        minimum_breakpoint = int(
-            self._chunk_size * 0.6
-        )
+        minimum_breakpoint = int(self._chunk_size * 0.6)
 
         candidates = [
             search_region.rfind("\n\n"),
@@ -151,7 +143,7 @@ class ChunkingService:
             if candidate >= minimum_breakpoint:
                 boundary_adjustment = 1
 
-                if search_region[candidate:candidate + 2] == ". ":
+                if search_region[candidate : candidate + 2] == ". ":
                     boundary_adjustment = 1
 
                 return start + candidate + boundary_adjustment

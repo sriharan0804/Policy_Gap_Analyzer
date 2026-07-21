@@ -41,16 +41,12 @@ class ConfidenceWeights:
         )
 
         if any(value < 0.0 or value > 1.0 for value in values):
-            raise ValueError(
-                "Confidence weights must be between 0.0 and 1.0."
-            )
+            raise ValueError("Confidence weights must be between 0.0 and 1.0.")
 
         total = sum(values)
 
         if abs(total - 1.0) > 1e-9:
-            raise ValueError(
-                "Confidence weights must sum to exactly 1.0."
-            )
+            raise ValueError("Confidence weights must sum to exactly 1.0.")
 
 
 @dataclass(frozen=True)
@@ -62,10 +58,7 @@ class ConfidenceThresholds:
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.medium <= self.high <= 1.0:
-            raise ValueError(
-                "Thresholds must satisfy "
-                "0.0 <= medium <= high <= 1.0."
-            )
+            raise ValueError("Thresholds must satisfy " "0.0 <= medium <= high <= 1.0.")
 
 
 @runtime_checkable
@@ -91,16 +84,10 @@ class DeterministicConfidenceScoringService:
         weights: ConfidenceWeights | None = None,
         thresholds: ConfidenceThresholds | None = None,
     ) -> None:
-        self._weights = (
-            weights
-            if weights is not None
-            else ConfidenceWeights()
-        )
+        self._weights = weights if weights is not None else ConfidenceWeights()
 
         self._thresholds = (
-            thresholds
-            if thresholds is not None
-            else ConfidenceThresholds()
+            thresholds if thresholds is not None else ConfidenceThresholds()
         )
 
     def score(
@@ -122,14 +109,10 @@ class DeterministicConfidenceScoringService:
             policy_statements=statements,
         )
 
-        requirement_extraction_score = self._clamp(
-            requirement.extraction_confidence
-        )
+        requirement_extraction_score = self._clamp(requirement.extraction_confidence)
 
         policy_extraction_score = (
-            self._clamp(
-                matching_statement.extraction_confidence
-            )
+            self._clamp(matching_statement.extraction_confidence)
             if matching_statement is not None
             else 0.0
         )
@@ -139,47 +122,29 @@ class DeterministicConfidenceScoringService:
             retrieval_scores=retrieval_map,
         )
 
-        comparison_score = self._calculate_comparison_score(
-            gap_assessment
+        comparison_score = self._calculate_comparison_score(gap_assessment)
+
+        evidence_completeness_score = self._calculate_evidence_completeness(
+            requirement=requirement,
+            gap_assessment=gap_assessment,
         )
 
-        evidence_completeness_score = (
-            self._calculate_evidence_completeness(
-                requirement=requirement,
-                gap_assessment=gap_assessment,
-            )
-        )
-
-        evidence_quantity_score = (
-            self._calculate_evidence_quantity(
-                gap_assessment.evaluated_policy_count
-            )
+        evidence_quantity_score = self._calculate_evidence_quantity(
+            gap_assessment.evaluated_policy_count
         )
 
         components = GapConfidenceComponents(
-            requirement_extraction_score=(
-                requirement_extraction_score
-            ),
-            policy_extraction_score=(
-                policy_extraction_score
-            ),
+            requirement_extraction_score=(requirement_extraction_score),
+            policy_extraction_score=(policy_extraction_score),
             retrieval_score=retrieval_score,
             comparison_score=comparison_score,
-            evidence_completeness_score=(
-                evidence_completeness_score
-            ),
-            evidence_quantity_score=(
-                evidence_quantity_score
-            ),
+            evidence_completeness_score=(evidence_completeness_score),
+            evidence_quantity_score=(evidence_quantity_score),
         )
 
-        confidence_score = self._calculate_weighted_score(
-            components
-        )
+        confidence_score = self._calculate_weighted_score(components)
 
-        confidence_level = self._classify_confidence(
-            confidence_score
-        )
+        confidence_level = self._classify_confidence(confidence_score)
 
         positive_factors = self._build_positive_factors(
             components=components,
@@ -191,30 +156,22 @@ class DeterministicConfidenceScoringService:
             requirement=requirement,
             gap_assessment=gap_assessment,
             matching_statement=matching_statement,
-            retrieval_scores_available=bool(
-                retrieval_map
-            ),
+            retrieval_scores_available=bool(retrieval_map),
         )
 
-        requires_human_review = (
-            self._requires_human_review(
-                confidence_level=confidence_level,
-                gap_assessment=gap_assessment,
-                components=components,
-            )
+        requires_human_review = self._requires_human_review(
+            confidence_level=confidence_level,
+            gap_assessment=gap_assessment,
+            components=components,
         )
 
         return GapConfidenceAssessment(
-            gap_assessment_id=(
-                gap_assessment.assessment_id
-            ),
+            gap_assessment_id=(gap_assessment.assessment_id),
             requirement_id=requirement.requirement_id,
             confidence_score=confidence_score,
             confidence_level=confidence_level,
             components=components,
-            supporting_evidence_count=(
-                gap_assessment.evaluated_policy_count
-            ),
+            supporting_evidence_count=(gap_assessment.evaluated_policy_count),
             positive_factors=positive_factors,
             limiting_factors=limiting_factors,
             requires_human_review=requires_human_review,
@@ -230,16 +187,13 @@ class DeterministicConfidenceScoringService:
         """Score multiple gap assessments by requirement ID."""
 
         assessment_by_requirement = {
-            assessment.requirement_id: assessment
-            for assessment in gap_assessments
+            assessment.requirement_id: assessment for assessment in gap_assessments
         }
 
         results: list[GapConfidenceAssessment] = []
 
         for requirement in requirements:
-            assessment = assessment_by_requirement.get(
-                requirement.requirement_id
-            )
+            assessment = assessment_by_requirement.get(requirement.requirement_id)
 
             if assessment is None:
                 continue
@@ -264,21 +218,12 @@ class DeterministicConfidenceScoringService:
         score = (
             components.requirement_extraction_score
             * self._weights.requirement_extraction
-            +
-            components.policy_extraction_score
-            * self._weights.policy_extraction
-            +
-            components.retrieval_score
-            * self._weights.retrieval
-            +
-            components.comparison_score
-            * self._weights.comparison
-            +
-            components.evidence_completeness_score
+            + components.policy_extraction_score * self._weights.policy_extraction
+            + components.retrieval_score * self._weights.retrieval
+            + components.comparison_score * self._weights.comparison
+            + components.evidence_completeness_score
             * self._weights.evidence_completeness
-            +
-            components.evidence_quantity_score
-            * self._weights.evidence_quantity
+            + components.evidence_quantity_score * self._weights.evidence_quantity
         )
 
         return round(
@@ -297,9 +242,7 @@ class DeterministicConfidenceScoringService:
         if gap_assessment.best_match is None:
             return 0.0
 
-        chunk_id = (
-            gap_assessment.best_match.policy_chunk_id
-        )
+        chunk_id = gap_assessment.best_match.policy_chunk_id
 
         score = retrieval_scores.get(chunk_id)
 
@@ -326,10 +269,7 @@ class DeterministicConfidenceScoringService:
 
             return 1.0 - gap_assessment.deterministic_score
 
-        if (
-            gap_assessment.status
-            == GapStatus.INSUFFICIENT_EVIDENCE
-        ):
+        if gap_assessment.status == GapStatus.INSUFFICIENT_EVIDENCE:
             return 0.35
 
         return gap_assessment.deterministic_score
@@ -345,11 +285,7 @@ class DeterministicConfidenceScoringService:
         match = gap_assessment.best_match
 
         if match is None:
-            return (
-                0.8
-                if gap_assessment.evaluated_policy_count == 0
-                else 0.2
-            )
+            return 0.8 if gap_assessment.evaluated_policy_count == 0 else 0.2
 
         scores = [
             match.components.action_score,
@@ -358,14 +294,10 @@ class DeterministicConfidenceScoringService:
         ]
 
         if requirement.timing is not None:
-            scores.append(
-                match.components.timing_score
-            )
+            scores.append(match.components.timing_score)
 
         if requirement.condition is not None:
-            scores.append(
-                match.components.condition_score
-            )
+            scores.append(match.components.condition_score)
 
         if not scores:
             return 0.0
@@ -403,9 +335,7 @@ class DeterministicConfidenceScoringService:
         if gap_assessment.best_match is None:
             return None
 
-        selected_id = (
-            gap_assessment.best_match.policy_statement_id
-        )
+        selected_id = gap_assessment.best_match.policy_statement_id
 
         return next(
             (
@@ -440,42 +370,31 @@ class DeterministicConfidenceScoringService:
 
         factors: list[str] = []
 
-        if (
-            components.requirement_extraction_score
-            >= 0.80
-        ):
+        if components.requirement_extraction_score >= 0.80:
             factors.append(
-                "The regulatory requirement was extracted "
-                "with high confidence."
+                "The regulatory requirement was extracted " "with high confidence."
             )
 
         if components.policy_extraction_score >= 0.80:
             factors.append(
-                "The selected policy statement was extracted "
-                "with high confidence."
+                "The selected policy statement was extracted " "with high confidence."
             )
 
         if components.retrieval_score >= 0.75:
             factors.append(
-                "The selected policy evidence had strong "
-                "retrieval relevance."
+                "The selected policy evidence had strong " "retrieval relevance."
             )
 
         if components.comparison_score >= 0.80:
             factors.append(
-                "The deterministic comparison produced a "
-                "strong decision signal."
+                "The deterministic comparison produced a " "strong decision signal."
             )
 
         if components.evidence_completeness_score >= 0.80:
-            factors.append(
-                "Most required comparison dimensions were present."
-            )
+            factors.append("Most required comparison dimensions were present.")
 
         if gap_assessment.evaluated_policy_count >= 2:
-            factors.append(
-                "Multiple policy statements were evaluated."
-            )
+            factors.append("Multiple policy statements were evaluated.")
 
         return factors
 
@@ -492,13 +411,9 @@ class DeterministicConfidenceScoringService:
 
         factors: list[str] = []
 
-        if (
-            components.requirement_extraction_score
-            < 0.60
-        ):
+        if components.requirement_extraction_score < 0.60:
             factors.append(
-                "The regulatory requirement extraction "
-                "confidence is low."
+                "The regulatory requirement extraction " "confidence is low."
             )
 
         if matching_statement is None:
@@ -509,8 +424,7 @@ class DeterministicConfidenceScoringService:
 
         elif components.policy_extraction_score < 0.60:
             factors.append(
-                "The selected policy statement extraction "
-                "confidence is low."
+                "The selected policy statement extraction " "confidence is low."
             )
 
         if not retrieval_scores_available:
@@ -521,61 +435,34 @@ class DeterministicConfidenceScoringService:
 
         elif components.retrieval_score < 0.50:
             factors.append(
-                "The selected policy evidence had weak "
-                "retrieval relevance."
+                "The selected policy evidence had weak " "retrieval relevance."
             )
 
         if (
             requirement.timing is not None
             and gap_assessment.best_match is not None
-            and (
-                gap_assessment
-                .best_match
-                .components
-                .timing_score
-                < 1.0
-            )
+            and (gap_assessment.best_match.components.timing_score < 1.0)
         ):
             factors.append(
-                "The regulatory timing requirement was not "
-                "fully matched."
+                "The regulatory timing requirement was not " "fully matched."
             )
 
         if (
             requirement.condition is not None
             and gap_assessment.best_match is not None
-            and (
-                gap_assessment
-                .best_match
-                .components
-                .condition_score
-                < 1.0
-            )
+            and (gap_assessment.best_match.components.condition_score < 1.0)
         ):
-            factors.append(
-                "The regulatory condition was not fully matched."
-            )
+            factors.append("The regulatory condition was not fully matched.")
 
-        if (
-            components.evidence_completeness_score
-            < 0.50
-        ):
-            factors.append(
-                "The available policy evidence is incomplete."
-            )
+        if components.evidence_completeness_score < 0.50:
+            factors.append("The available policy evidence is incomplete.")
 
         if gap_assessment.evaluated_policy_count == 0:
-            factors.append(
-                "No policy statements were available for comparison."
-            )
+            factors.append("No policy statements were available for comparison.")
 
-        if (
-            gap_assessment.status
-            == GapStatus.INSUFFICIENT_EVIDENCE
-        ):
+        if gap_assessment.status == GapStatus.INSUFFICIENT_EVIDENCE:
             factors.append(
-                "The gap engine classified the available "
-                "evidence as insufficient."
+                "The gap engine classified the available " "evidence as insufficient."
             )
 
         return factors
@@ -598,14 +485,11 @@ class DeterministicConfidenceScoringService:
         if components.evidence_completeness_score < 0.90:
             return True
 
-        if (
-            gap_assessment.status
-            in {
-                GapStatus.CONTRADICTED,
-                GapStatus.INSUFFICIENT_EVIDENCE,
-                GapStatus.PARTIALLY_ADDRESSED,
-            }
-        ):
+        if gap_assessment.status in {
+            GapStatus.CONTRADICTED,
+            GapStatus.INSUFFICIENT_EVIDENCE,
+            GapStatus.PARTIALLY_ADDRESSED,
+        }:
             return True
 
         return False
@@ -622,8 +506,7 @@ class DeterministicConfidenceScoringService:
                 (int, float),
             ):
                 raise InvalidRetrievalScoreError(
-                    f"Retrieval score for chunk {chunk_id} "
-                    "must be numeric."
+                    f"Retrieval score for chunk {chunk_id} " "must be numeric."
                 )
 
             if score < 0.0 or score > 1.0:

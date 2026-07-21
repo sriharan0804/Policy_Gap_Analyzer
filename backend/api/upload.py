@@ -12,7 +12,7 @@ from fastapi import (
     status,
 )
 
-from backend.config import get_settings , Settings
+from backend.config import get_settings, Settings
 from backend.exceptions import (
     DocumentStorageError,
     DocumentTooLargeError,
@@ -22,7 +22,6 @@ from backend.exceptions import (
 from backend.models import DocumentType, IssuingAuthority
 from backend.schemas import DocumentUploadResponse
 from backend.services.document_service import DocumentService
-
 
 router = APIRouter(
     prefix="/documents",
@@ -43,7 +42,6 @@ async def upload_document(
     settings: Settings = Depends(get_settings),
 ) -> DocumentUploadResponse:
     """Validate, store, and register an uploaded document."""
-
 
     maximum_bytes = settings.max_upload_size_mb * 1024 * 1024
 

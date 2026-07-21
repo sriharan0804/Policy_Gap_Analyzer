@@ -1,34 +1,40 @@
 from __future__ import annotations
-from datetime import date , datetime , timezone
-from enum import StrEnum , Enum
+from datetime import date, datetime, timezone
+from enum import StrEnum, Enum
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field ,  model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
-NonEmptyText = Annotated[str , Field(min_length=1)]
-NormalizedScore = Annotated[float , Field(ge=0.0 , le=1.0)]
-PositivePageNumber = Annotated[int , Field(ge=1)]
+
+NonEmptyText = Annotated[str, Field(min_length=1)]
+NormalizedScore = Annotated[float, Field(ge=0.0, le=1.0)]
+PositivePageNumber = Annotated[int, Field(ge=1)]
+
 
 class DomainModel(BaseModel):
     model_config = ConfigDict(
-        extra = "forbid",
-        validate_assignment = True,
-        str_strip_whitespace = True,
-        use_enum_values = False,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        use_enum_values=False,
     )
+
 
 class DocumentType(StrEnum):
     REGULATION = "regulation"
     POLICY = "policy"
 
+
 class IssuingAuthority(StrEnum):
     SEC = "sec"
     FINRA = "finra"
     OTHER = "other"
+
 
 class ProcessingStatus(StrEnum):
     UPLOADED = "uploaded"
@@ -37,11 +43,12 @@ class ProcessingStatus(StrEnum):
     PROCESSED = "processed"
     FAILED = "failed"
 
+
 class RequirementType(StrEnum):
     OBLIGATION = "obligation"
     PROHIBITION = "prohibition"
     REPORTING = "reporting"
-    RECORDKEEPING ="recordkeeping"
+    RECORDKEEPING = "recordkeeping"
     DISCLOSURE = "disclosure"
     SUPERVISION = "supervision"
     GOVERNANCE = "governance"
@@ -50,11 +57,18 @@ class RequirementType(StrEnum):
     CONDITION = "condition"
     OTHER = "other"
 
+
 class RequirementModality(StrEnum):
+    """Strength of a regulatory statement."""
+
     MANDATORY = "mandatory"
+    PROHIBITED = "prohibited"
     RECOMMENDED = "recommended"
     PERMISSIVE = "permissive"
+    ADVISORY = "advisory"
     UNCLEAR = "unclear"
+    UNKNOWN = "unknown"
+
 
 class GapClassification(StrEnum):
     COVERED = "covered"
@@ -64,11 +78,13 @@ class GapClassification(StrEnum):
     INSUFFICIENT_EVIDENCE = "insufficient_evidence"
     REQUIRES_LEGAL_REVIEW = "requires_legal_review"
 
+
 class RiskLevel(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+
 
 class ReviewDecision(StrEnum):
     PENDING = "pending"
@@ -78,10 +94,12 @@ class ReviewDecision(StrEnum):
     ESCALATE_TO_LEGAL = "escalate_to_legal"
     NOT_APPLICABLE = "not_applicable"
 
+
 class ValidationStatus(StrEnum):
     NOT_RUN = "not_run"
     PASSED = "passed"
     FAILED = "failed"
+
 
 class DocumentMetadata(DomainModel):
     """Registered source-document metadata.
@@ -122,18 +140,14 @@ class DocumentMetadata(DomainModel):
             self.document_type == DocumentType.REGULATION
             and self.issuing_authority is None
         ):
-            raise ValueError(
-                "issuing_authority is required for regulatory documents"
-            )
+            raise ValueError("issuing_authority is required for regulatory documents")
 
         if (
             self.publication_date is not None
             and self.effective_date is not None
             and self.effective_date < self.publication_date
         ):
-            raise ValueError(
-                "effective_date cannot be earlier than publication_date"
-            )
+            raise ValueError("effective_date cannot be earlier than publication_date")
 
         if (
             self.processing_status == ProcessingStatus.PROCESSED
@@ -144,6 +158,7 @@ class DocumentMetadata(DomainModel):
             )
 
         return self
+
 
 class ParsedPage(DomainModel):
     """Text extracted from one PDF page."""
@@ -161,14 +176,10 @@ class ParsedPage(DomainModel):
         actual_count = len(self.text)
 
         if self.character_count != actual_count:
-            raise ValueError(
-                "character_count must equal the length of text."
-            )
+            raise ValueError("character_count must equal the length of text.")
 
         if self.is_empty != (actual_count == 0):
-            raise ValueError(
-                "is_empty must reflect whether extracted text is empty."
-            )
+            raise ValueError("is_empty must reflect whether extracted text is empty.")
 
         return self
 
@@ -188,39 +199,26 @@ class ParsedDocument(DomainModel):
         """Ensure page and extraction totals remain consistent."""
 
         if self.page_count != len(self.pages):
-            raise ValueError(
-                "page_count must equal the number of parsed pages."
-            )
+            raise ValueError("page_count must equal the number of parsed pages.")
 
-        expected_characters = sum(
-            page.character_count for page in self.pages
-        )
+        expected_characters = sum(page.character_count for page in self.pages)
 
         if self.extracted_character_count != expected_characters:
-            raise ValueError(
-                "extracted_character_count does not match page totals."
-            )
+            raise ValueError("extracted_character_count does not match page totals.")
 
-        expected_empty_pages = sum(
-            1 for page in self.pages if page.is_empty
-        )
+        expected_empty_pages = sum(1 for page in self.pages if page.is_empty)
 
         if self.empty_page_count != expected_empty_pages:
-            raise ValueError(
-                "empty_page_count does not match parsed pages."
-            )
+            raise ValueError("empty_page_count does not match parsed pages.")
 
-        expected_requires_ocr = any(
-            page.may_require_ocr for page in self.pages
-        )
+        expected_requires_ocr = any(page.may_require_ocr for page in self.pages)
 
         if self.requires_ocr != expected_requires_ocr:
-            raise ValueError(
-                "requires_ocr must reflect page-level OCR flags."
-            )
+            raise ValueError("requires_ocr must reflect page-level OCR flags.")
 
         return self
-    
+
+
 class SourceLocation(DomainModel):
 
     document_id: UUID
@@ -241,12 +239,11 @@ class SourceLocation(DomainModel):
             and self.character_end is not None
             and self.character_end <= self.character_start
         ):
-            raise ValueError(
-                "character_end must be greater than character_start"
-            )
+            raise ValueError("character_end must be greater than character_start")
 
         return self
-    
+
+
 class Evidence(DomainModel):
     evidence_id: UUID = Field(default_factory=uuid4)
     location: SourceLocation
@@ -256,6 +253,7 @@ class Evidence(DomainModel):
     embedding_model: str | None = None
 
     is_primary_evidence: bool = False
+
 
 class RegulatoryRequirement(DomainModel):
 
@@ -289,8 +287,9 @@ class RegulatoryRequirement(DomainModel):
 
         return self
 
+
 class ConfidenceComponents(DomainModel):
-   
+
     retrieval_quality: NormalizedScore
     regulatory_evidence_quality: NormalizedScore
     policy_evidence_quality: NormalizedScore
@@ -299,12 +298,12 @@ class ConfidenceComponents(DomainModel):
 
 
 class ConfidenceAssessment(DomainModel):
-  
 
     score: NormalizedScore
     components: ConfidenceComponents
     calculation_version: NonEmptyText
     explanation: NonEmptyText
+
 
 class RiskComponents(DomainModel):
     mandatory_requirement: bool
@@ -340,14 +339,10 @@ class ValidationResult(DomainModel):
         """Keep validation status consistent with failed checks."""
 
         if self.status == ValidationStatus.PASSED and self.failed_checks:
-            raise ValueError(
-                "passed validation cannot contain failed checks"
-            )
+            raise ValueError("passed validation cannot contain failed checks")
 
         if self.status == ValidationStatus.FAILED and not self.failed_checks:
-            raise ValueError(
-                "failed validation must contain at least one failed check"
-            )
+            raise ValueError("failed validation must contain at least one failed check")
 
         return self
 
@@ -366,14 +361,10 @@ class HumanReview(DomainModel):
 
         if self.decision != ReviewDecision.PENDING:
             if not self.reviewer_id:
-                raise ValueError(
-                    "reviewer_id is required for a completed review"
-                )
+                raise ValueError("reviewer_id is required for a completed review")
 
             if self.reviewed_at is None:
-                raise ValueError(
-                    "reviewed_at is required for a completed review"
-                )
+                raise ValueError("reviewed_at is required for a completed review")
 
         return self
 
@@ -413,12 +404,11 @@ class Finding(DomainModel):
             self.classification in evidence_required_classifications
             and not self.policy_evidence
         ):
-            raise ValueError(
-                f"{self.classification.value} requires policy evidence"
-            )
+            raise ValueError(f"{self.classification.value} requires policy evidence")
 
         return self
-    
+
+
 class DocumentChunk(DomainModel):
     """A retrieval-sized passage with source provenance."""
 
@@ -436,24 +426,16 @@ class DocumentChunk(DomainModel):
     @model_validator(mode="after")
     def validate_chunk_boundaries(self) -> "DocumentChunk":
         if self.character_count != len(self.text):
-            raise ValueError(
-                "character_count must equal the length of text."
-            )
+            raise ValueError("character_count must equal the length of text.")
 
         if self.end_character <= self.start_character:
-            raise ValueError(
-                "end_character must be greater than start_character."
-            )
+            raise ValueError("end_character must be greater than start_character.")
 
-        if (
-            self.end_character - self.start_character
-            != self.character_count
-        ):
-            raise ValueError(
-                "Chunk offsets must match character_count."
-            )
+        if self.end_character - self.start_character != self.character_count:
+            raise ValueError("Chunk offsets must match character_count.")
 
         return self
+
 
 class RetrievedChunk(DomainModel):
     """A source chunk returned by semantic retrieval."""
@@ -461,16 +443,6 @@ class RetrievedChunk(DomainModel):
     chunk: DocumentChunk
     similarity_score: float = Field(ge=-1.0, le=1.0)
     rank: int = Field(ge=1)
-
-
-class RequirementModality(str, Enum):
-    """Strength of a regulatory statement."""
-
-    MANDATORY = "mandatory"
-    PROHIBITED = "prohibited"
-    PERMISSIVE = "permissive"
-    ADVISORY = "advisory"
-    UNKNOWN = "unknown"
 
 
 class RequirementCandidate(DomainModel):
@@ -497,6 +469,7 @@ class RequirementCandidate(DomainModel):
         ge=0.0,
         le=1.0,
     )
+
 
 class PolicyStatementType(str, Enum):
     """Classification of an internal policy statement."""
@@ -601,6 +574,7 @@ class GapAssessment(DomainModel):
 
     requires_human_review: bool = True
 
+
 class GapConfidenceLevel(str, Enum):
     """Human-readable confidence category."""
 
@@ -662,23 +636,11 @@ class GapConfidenceAssessment(DomainModel):
 
     supporting_evidence_count: int = Field(ge=0)
 
-    positive_factors: list[str] = Field(
-        default_factory=list
-    )
+    positive_factors: list[str] = Field(default_factory=list)
 
-    limiting_factors: list[str] = Field(
-        default_factory=list
-    )
+    limiting_factors: list[str] = Field(default_factory=list)
 
     requires_human_review: bool = True
-
-
-
-class RiskLevel(str, Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
 
 
 class RegulatoryImpact(str, Enum):
@@ -706,6 +668,7 @@ class GapRiskComponents(DomainModel):
     confidence_reliability_score: float = Field(ge=0.0, le=1.0)
     contradiction_score: float = Field(ge=0.0, le=1.0)
 
+
 class GapRiskAssessment(DomainModel):
     risk_assessment_id: UUID = Field(default_factory=uuid4)
 
@@ -725,3 +688,19 @@ class GapRiskAssessment(DomainModel):
 
     remediation_priority: str
     requires_human_review: bool = True
+
+
+class AnalysisResult(BaseModel):
+    analysis_id: UUID = Field(default_factory=uuid4)
+
+    regulatory_document_id: UUID
+    policy_document_id: UUID
+
+    requirements: list[RequirementCandidate]
+    policy_statements: list[PolicyStatement]
+
+    gap_assessments: list[GapAssessment]
+    confidence_assessments: list[GapConfidenceAssessment]
+    risk_assessments: list[GapRiskAssessment]
+
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

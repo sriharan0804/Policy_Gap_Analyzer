@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from uuid import UUID
 
@@ -6,7 +5,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from backend.models import (
     DocumentMetadata,
-    DocumentType,
     Finding,
     ReviewDecision,
 )
@@ -55,25 +53,25 @@ class StartAnalysisResponse(ApiSchema):
 
 
 class FindingResponse(ApiSchema):
- 
+
     finding: Finding
 
 
 class ReviewFindingRequest(ApiSchema):
-  
+
     decision: ReviewDecision
     reviewer_id: str = Field(min_length=1, max_length=200)
     comment: str | None = Field(default=None, max_length=5_000)
 
 
 class ReviewFindingResponse(ApiSchema):
- 
+
     finding: Finding
     message: str
 
 
 class AnalysisSummaryResponse(ApiSchema):
-   
+
     analysis_id: UUID
     regulation_document_id: UUID
 

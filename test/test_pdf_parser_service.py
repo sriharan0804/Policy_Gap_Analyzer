@@ -50,9 +50,7 @@ def test_parse_pdf_preserves_page_numbers(tmp_path: Path):
         ],
     )
 
-    service = PDFParserService(
-        minimum_text_characters=5
-    )
+    service = PDFParserService(minimum_text_characters=5)
 
     parsed = service.parse(
         document_id=uuid4(),
@@ -80,9 +78,7 @@ def test_empty_page_is_flagged_for_ocr(tmp_path: Path):
         [""],
     )
 
-    service = PDFParserService(
-        minimum_text_characters=20
-    )
+    service = PDFParserService(minimum_text_characters=20)
 
     parsed = service.parse(
         document_id=uuid4(),
@@ -106,9 +102,7 @@ def test_short_page_is_flagged_for_ocr(tmp_path: Path):
         ["Hi"],
     )
 
-    service = PDFParserService(
-        minimum_text_characters=20
-    )
+    service = PDFParserService(minimum_text_characters=20)
 
     parsed = service.parse(
         document_id=uuid4(),
@@ -138,9 +132,7 @@ def test_corrupted_pdf_is_rejected(tmp_path: Path):
     """Invalid PDF data must not reach downstream services."""
 
     pdf_path = tmp_path / "corrupted.pdf"
-    pdf_path.write_bytes(
-        b"%PDF-this is not a complete PDF"
-    )
+    pdf_path.write_bytes(b"%PDF-this is not a complete PDF")
 
     service = PDFParserService()
 
@@ -157,18 +149,8 @@ def test_corrupted_pdf_is_rejected(tmp_path: Path):
 def test_normalize_text():
     """Whitespace should be cleaned consistently."""
 
-    raw_text = (
-        "  Policy    title  \n"
-        "\n"
-        "\n"
-        "\n"
-        " Review\tprocedure "
-    )
+    raw_text = "  Policy    title  \n" "\n" "\n" "\n" " Review\tprocedure "
 
-    normalized = PDFParserService.normalize_text(
-        raw_text
-    )
+    normalized = PDFParserService.normalize_text(raw_text)
 
-    assert normalized == (
-        "Policy title\n\nReview procedure"
-    )
+    assert normalized == ("Policy title\n\nReview procedure")

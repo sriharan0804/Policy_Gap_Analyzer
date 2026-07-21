@@ -54,8 +54,7 @@ class RiskThresholds:
     def __post_init__(self) -> None:
         if not 0.0 <= self.medium <= self.high <= self.critical <= 1.0:
             raise ValueError(
-                "Thresholds must satisfy "
-                "0.0 <= medium <= high <= critical <= 1.0."
+                "Thresholds must satisfy " "0.0 <= medium <= high <= critical <= 1.0."
             )
 
 
@@ -94,22 +93,14 @@ class DeterministicRiskScoringService:
     ) -> GapRiskAssessment:
         components = GapRiskComponents(
             gap_severity_score=self._gap_severity(gap_assessment.status),
-            regulatory_impact_score=self._regulatory_impact_score(
-                regulatory_impact
-            ),
+            regulatory_impact_score=self._regulatory_impact_score(regulatory_impact),
             requirement_criticality_score=self._requirement_criticality(
                 requirement.modality
             ),
-            data_sensitivity_score=self._data_sensitivity_score(
-                data_sensitivity
-            ),
-            confidence_reliability_score=(
-                confidence_assessment.confidence_score
-            ),
+            data_sensitivity_score=self._data_sensitivity_score(data_sensitivity),
+            confidence_reliability_score=(confidence_assessment.confidence_score),
             contradiction_score=(
-                1.0
-                if gap_assessment.status == GapStatus.CONTRADICTED
-                else 0.0
+                1.0 if gap_assessment.status == GapStatus.CONTRADICTED else 0.0
             ),
         )
 
@@ -150,16 +141,13 @@ class DeterministicRiskScoringService:
     def _weighted_score(self, components: GapRiskComponents) -> float:
         score = (
             components.gap_severity_score * self._weights.gap_severity
-            + components.regulatory_impact_score
-            * self._weights.regulatory_impact
+            + components.regulatory_impact_score * self._weights.regulatory_impact
             + components.requirement_criticality_score
             * self._weights.requirement_criticality
-            + components.data_sensitivity_score
-            * self._weights.data_sensitivity
+            + components.data_sensitivity_score * self._weights.data_sensitivity
             + components.confidence_reliability_score
             * self._weights.confidence_reliability
-            + components.contradiction_score
-            * self._weights.contradiction
+            + components.contradiction_score * self._weights.contradiction
         )
 
         return round(max(0.0, min(1.0, score)), 4)

@@ -95,38 +95,36 @@ class RuleBasedRequirementExtractionService:
     )
 
     _NUMBER_PATTERN = (
-    r"(?:\d+|"
-    r"one|two|three|four|five|six|seven|eight|nine|ten|"
-    r"eleven|twelve|thirteen|fourteen|fifteen|sixteen|"
-    r"seventeen|eighteen|nineteen|twenty|thirty|forty|"
-    r"fifty|sixty|seventy|eighty|ninety)"
+        r"(?:\d+|"
+        r"one|two|three|four|five|six|seven|eight|nine|ten|"
+        r"eleven|twelve|thirteen|fourteen|fifteen|sixteen|"
+        r"seventeen|eighteen|nineteen|twenty|thirty|forty|"
+        r"fifty|sixty|seventy|eighty|ninety)"
     )
 
     _TIMING_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(
-        rf"\b(?:within|no later than)\s+"
-        rf"{_NUMBER_PATTERN}\s+"
-        rf"(?:business\s+)?"
-        rf"(?:day|days|week|weeks|month|months|year|years)\b",
-        flags=re.IGNORECASE,
-    ),
-    re.compile(
-        rf"\bfor\s+(?:at\s+least\s+)?"
-        rf"{_NUMBER_PATTERN}\s+"
-        rf"(?:day|days|week|weeks|month|months|year|years)\b",
-        flags=re.IGNORECASE,
-    ),
-    re.compile(
-        r"\b(?:daily|weekly|monthly|quarterly|annually|yearly)\b",
-        flags=re.IGNORECASE,
-    ),
-    re.compile(
-        r"\b(?:before|after|upon)\s+"
-        r"(?:the\s+)?"
-        r"[a-z][a-z\s-]{2,50}",
-        flags=re.IGNORECASE,
-    ),
-)
+        re.compile(
+            rf"\b(?:within|no later than)\s+"
+            rf"{_NUMBER_PATTERN}\s+"
+            rf"(?:business\s+)?"
+            rf"(?:day|days|week|weeks|month|months|year|years)\b",
+            flags=re.IGNORECASE,
+        ),
+        re.compile(
+            rf"\bfor\s+(?:at\s+least\s+)?"
+            rf"{_NUMBER_PATTERN}\s+"
+            rf"(?:day|days|week|weeks|month|months|year|years)\b",
+            flags=re.IGNORECASE,
+        ),
+        re.compile(
+            r"\b(?:daily|weekly|monthly|quarterly|annually|yearly)\b",
+            flags=re.IGNORECASE,
+        ),
+        re.compile(
+            r"\b(?:before|after|upon)\s+" r"(?:the\s+)?" r"[a-z][a-z\s-]{2,50}",
+            flags=re.IGNORECASE,
+        ),
+    )
 
     _CONDITION_PATTERNS: tuple[re.Pattern[str], ...] = (
         re.compile(
@@ -188,9 +186,7 @@ class RuleBasedRequirementExtractionService:
         candidates: list[RequirementCandidate] = []
 
         for chunk in chunks:
-            candidates.extend(
-                self.extract_from_chunk(chunk)
-            )
+            candidates.extend(self.extract_from_chunk(chunk))
 
         return candidates
 
@@ -208,9 +204,7 @@ class RuleBasedRequirementExtractionService:
             trigger_phrase=trigger.phrase,
         )
 
-        action, object_text = self._extract_action_and_object(
-            remainder
-        )
+        action, object_text = self._extract_action_and_object(remainder)
 
         timing = self._extract_first_match(
             text=sentence,
@@ -255,11 +249,7 @@ class RuleBasedRequirementExtractionService:
         lowered_sentence = sentence.lower()
 
         for trigger in self._TRIGGERS:
-            pattern = (
-                r"\b"
-                + re.escape(trigger.phrase)
-                + r"\b"
-            )
+            pattern = r"\b" + re.escape(trigger.phrase) + r"\b"
 
             if re.search(
                 pattern,
@@ -286,13 +276,9 @@ class RuleBasedRequirementExtractionService:
         if match is None:
             return None, sentence.strip()
 
-        subject = sentence[: match.start()].strip(
-            " ,;:"
-        )
+        subject = sentence[: match.start()].strip(" ,;:")
 
-        remainder = sentence[match.end() :].strip(
-            " ,;:"
-        )
+        remainder = sentence[match.end() :].strip(" ,;:")
 
         return (
             subject or None,
@@ -384,11 +370,7 @@ class RuleBasedRequirementExtractionService:
             text,
         )
 
-        return [
-            part.strip()
-            for part in parts
-            if part.strip()
-        ]
+        return [part.strip() for part in parts if part.strip()]
 
     @staticmethod
     def _normalize_text(

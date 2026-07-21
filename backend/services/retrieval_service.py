@@ -18,9 +18,7 @@ class RetrievalService:
         vector_store: FaissVectorStore,
     ) -> None:
         if embedder.dimension != vector_store.dimension:
-            raise ValueError(
-                "Embedder dimension must match vector store dimension."
-            )
+            raise ValueError("Embedder dimension must match vector store dimension.")
 
         self._embedder = embedder
         self._vector_store = vector_store
@@ -37,19 +35,13 @@ class RetrievalService:
         validated_query = self._validate_query(query)
 
         if top_k <= 0:
-            raise ValueError(
-                "top_k must be greater than zero."
-            )
+            raise ValueError("top_k must be greater than zero.")
 
         if minimum_score is not None:
             if minimum_score < -1.0 or minimum_score > 1.0:
-                raise ValueError(
-                    "minimum_score must be between -1.0 and 1.0."
-                )
+                raise ValueError("minimum_score must be between -1.0 and 1.0.")
 
-        query_embedding = self._embedder.embed_query(
-            validated_query
-        )
+        query_embedding = self._embedder.embed_query(validated_query)
 
         return self._vector_store.search(
             query_embedding=query_embedding,
@@ -62,15 +54,11 @@ class RetrievalService:
         """Validate and normalize a retrieval query."""
 
         if not isinstance(query, str):
-            raise EmptyEmbeddingInputError(
-                "The retrieval query must be a string."
-            )
+            raise EmptyEmbeddingInputError("The retrieval query must be a string.")
 
         normalized_query = query.strip()
 
         if not normalized_query:
-            raise EmptyEmbeddingInputError(
-                "The retrieval query cannot be empty."
-            )
+            raise EmptyEmbeddingInputError("The retrieval query cannot be empty.")
 
         return normalized_query

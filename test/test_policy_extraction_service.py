@@ -39,10 +39,7 @@ def test_service_satisfies_policy_extractor_protocol():
 
 def test_extracts_policy_control():
     chunk = make_chunk(
-        text=(
-            "Operations staff must verify all new "
-            "customer account information."
-        )
+        text=("Operations staff must verify all new " "customer account information.")
     )
 
     service = RuleBasedPolicyExtractionService()
@@ -52,26 +49,19 @@ def test_extracts_policy_control():
     assert len(results) == 1
     assert results[0].subject == "Operations staff"
     assert results[0].action == "verify"
-    assert results[0].statement_type == (
-        PolicyStatementType.CONTROL
-    )
+    assert results[0].statement_type == (PolicyStatementType.CONTROL)
 
 
 def test_extracts_policy_prohibition():
     chunk = make_chunk(
-        text=(
-            "Employees must not disclose confidential "
-            "customer information."
-        )
+        text=("Employees must not disclose confidential " "customer information.")
     )
 
     service = RuleBasedPolicyExtractionService()
 
     result = service.extract_from_chunk(chunk)[0]
 
-    assert result.statement_type == (
-        PolicyStatementType.PROHIBITION
-    )
+    assert result.statement_type == (PolicyStatementType.PROHIBITION)
     assert result.matched_trigger == "must not"
     assert result.action == "disclose"
 
@@ -88,26 +78,18 @@ def test_classifies_record_retention_statement():
 
     result = service.extract_from_chunk(chunk)[0]
 
-    assert result.statement_type == (
-        PolicyStatementType.RECORD_RETENTION
-    )
+    assert result.statement_type == (PolicyStatementType.RECORD_RETENTION)
     assert result.timing == "for at least three years"
 
 
 def test_classifies_review_statement():
-    chunk = make_chunk(
-        text=(
-            "Compliance staff shall review active accounts annually."
-        )
-    )
+    chunk = make_chunk(text=("Compliance staff shall review active accounts annually."))
 
     service = RuleBasedPolicyExtractionService()
 
     result = service.extract_from_chunk(chunk)[0]
 
-    assert result.statement_type == (
-        PolicyStatementType.REVIEW
-    )
+    assert result.statement_type == (PolicyStatementType.REVIEW)
     assert result.timing == "annually"
 
 
@@ -123,17 +105,12 @@ def test_extracts_condition():
 
     result = service.extract_from_chunk(chunk)[0]
 
-    assert result.condition == (
-        "if suspicious activity is detected"
-    )
+    assert result.condition == ("if suspicious activity is detected")
 
 
 def test_extracts_responsible_party():
     chunk = make_chunk(
-        text=(
-            "Customer records must be reviewed annually "
-            "by Compliance."
-        )
+        text=("Customer records must be reviewed annually " "by Compliance.")
     )
 
     service = RuleBasedPolicyExtractionService()
@@ -144,11 +121,7 @@ def test_extracts_responsible_party():
 
 
 def test_non_policy_statement_is_ignored():
-    chunk = make_chunk(
-        text=(
-            "The company maintains offices in several cities."
-        )
-    )
+    chunk = make_chunk(text=("The company maintains offices in several cities."))
 
     service = RuleBasedPolicyExtractionService()
 
@@ -191,9 +164,7 @@ def test_preserves_source_provenance():
 
 
 def test_confidence_is_bounded():
-    chunk = make_chunk(
-        text="Compliance must review customer complaints."
-    )
+    chunk = make_chunk(text="Compliance must review customer complaints.")
 
     service = RuleBasedPolicyExtractionService()
 

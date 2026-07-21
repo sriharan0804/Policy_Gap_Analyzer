@@ -4,10 +4,8 @@ from uuid import uuid4
 
 import pytest
 
-from backend.exceptions import InvalidRetrievalScoreError
 from backend.models import (
     GapConfidenceLevel,
-    GapStatus,
     PolicyStatement,
     PolicyStatementType,
     RequirementCandidate,
@@ -37,9 +35,7 @@ def make_requirement(
         chunk_id=uuid4(),
         page_number=2,
         chunk_index=3,
-        source_text=(
-            "The firm must retain customer account records."
-        ),
+        source_text=("The firm must retain customer account records."),
         subject="The firm",
         action=action,
         object=object_text,
@@ -64,19 +60,14 @@ def make_policy(
         chunk_id=uuid4(),
         page_number=6,
         chunk_index=9,
-        source_text=(
-            "Records staff must retain "
-            "customer account records."
-        ),
+        source_text=("Records staff must retain " "customer account records."),
         subject="Records staff",
         action=action,
         object=object_text,
         timing=timing,
         condition=condition,
         responsible_party="Records staff",
-        statement_type=(
-            PolicyStatementType.RECORD_RETENTION
-        ),
+        statement_type=(PolicyStatementType.RECORD_RETENTION),
         matched_trigger="must",
         extraction_confidence=extraction_confidence,
     )
@@ -128,16 +119,11 @@ def test_strong_complete_evidence_produces_high_confidence():
         },
     )
 
-    assert result.confidence_level == (
-        GapConfidenceLevel.HIGH
-    )
+    assert result.confidence_level == (GapConfidenceLevel.HIGH)
 
     assert result.confidence_score >= 0.80
 
-    assert (
-        result.components.retrieval_score
-        == 0.94
-    )
+    assert result.components.retrieval_score == 0.94
 
 
 def test_missing_timing_reduces_confidence():
@@ -165,17 +151,11 @@ def test_missing_timing_reduces_confidence():
         },
     )
 
-    assert (
-        result.components.evidence_completeness_score
-        < 1.0
-    )
+    assert result.components.evidence_completeness_score < 1.0
 
     assert result.requires_human_review is True
 
-    assert any(
-        "timing" in factor.lower()
-        for factor in result.limiting_factors
-    )
+    assert any("timing" in factor.lower() for factor in result.limiting_factors)
 
 
 def test_low_extraction_confidence_is_reported():
@@ -203,15 +183,10 @@ def test_low_extraction_confidence_is_reported():
         },
     )
 
-    assert (
-        result.components
-        .requirement_extraction_score
-        == 0.35
-    )
+    assert result.components.requirement_extraction_score == 0.35
 
     assert any(
-        "requirement extraction" in factor.lower()
-        for factor in result.limiting_factors
+        "requirement extraction" in factor.lower() for factor in result.limiting_factors
     )
 
     assert any(
@@ -265,8 +240,7 @@ def test_no_policy_evidence_requires_human_review():
     assert result.requires_human_review is True
 
     assert any(
-        "no policy statements" in factor.lower()
-        for factor in result.limiting_factors
+        "no policy statements" in factor.lower() for factor in result.limiting_factors
     )
 
 
@@ -308,10 +282,7 @@ def test_selected_policy_extraction_confidence_is_used():
         },
     )
 
-    assert (
-        result.components.policy_extraction_score
-        == 0.91
-    )
+    assert result.components.policy_extraction_score == 0.91
 
     assert result.components.retrieval_score == 0.95
 

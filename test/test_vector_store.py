@@ -57,26 +57,18 @@ def test_add_vectors_and_search():
         ),
     ]
 
-    embedder = DeterministicFakeEmbeddingService(
-        dimension=8
-    )
+    embedder = DeterministicFakeEmbeddingService(dimension=8)
 
-    embeddings = embedder.embed_texts(
-        [chunk.text for chunk in chunks]
-    )
+    embeddings = embedder.embed_texts([chunk.text for chunk in chunks])
 
-    store = FaissVectorStore(
-        dimension=8
-    )
+    store = FaissVectorStore(dimension=8)
 
     store.add(
         chunks=chunks,
         embeddings=embeddings,
     )
 
-    query = embedder.embed_query(
-        "Customer records must be retained."
-    )
+    query = embedder.embed_query("Customer records must be retained.")
 
     results = store.search(
         query_embedding=query,
@@ -86,9 +78,7 @@ def test_add_vectors_and_search():
     assert store.size == 2
     assert len(results) == 2
     assert results[0].rank == 1
-    assert results[0].chunk.text == (
-        "Customer records must be retained."
-    )
+    assert results[0].chunk.text == ("Customer records must be retained.")
 
 
 def test_search_preserves_page_and_document_metadata():
@@ -103,26 +93,16 @@ def test_search_preserves_page_and_document_metadata():
         text="Supervisory review is required.",
     )
 
-    embedder = DeterministicFakeEmbeddingService(
-        dimension=8
-    )
+    embedder = DeterministicFakeEmbeddingService(dimension=8)
 
-    store = FaissVectorStore(
-        dimension=8
-    )
+    store = FaissVectorStore(dimension=8)
 
     store.add(
         chunks=[chunk],
-        embeddings=embedder.embed_texts(
-            [chunk.text]
-        ),
+        embeddings=embedder.embed_texts([chunk.text]),
     )
 
-    results = store.search(
-        query_embedding=embedder.embed_query(
-            chunk.text
-        )
-    )
+    results = store.search(query_embedding=embedder.embed_query(chunk.text))
 
     assert results[0].chunk.document_id == document_id
     assert results[0].chunk.page_number == 7
@@ -132,9 +112,7 @@ def test_search_preserves_page_and_document_metadata():
 def test_empty_store_cannot_be_searched():
     """Searching an empty index should fail clearly."""
 
-    store = FaissVectorStore(
-        dimension=8
-    )
+    store = FaissVectorStore(dimension=8)
 
     query = np.ones(
         (1, 8),
@@ -144,9 +122,7 @@ def test_empty_store_cannot_be_searched():
     with pytest.raises(
         EmptyVectorStoreError,
     ):
-        store.search(
-            query_embedding=query
-        )
+        store.search(query_embedding=query)
 
 
 def test_wrong_embedding_dimension_is_rejected():
@@ -158,9 +134,7 @@ def test_wrong_embedding_dimension_is_rejected():
         text="Policy text.",
     )
 
-    store = FaissVectorStore(
-        dimension=8
-    )
+    store = FaissVectorStore(dimension=8)
 
     wrong_vectors = np.ones(
         (1, 6),
@@ -193,9 +167,7 @@ def test_chunk_count_must_match_vector_count():
         ),
     ]
 
-    store = FaissVectorStore(
-        dimension=8
-    )
+    store = FaissVectorStore(dimension=8)
 
     one_vector = np.ones(
         (1, 8),
@@ -224,19 +196,13 @@ def test_save_and_load_store(tmp_path: Path):
         text="Records must be retained for five years.",
     )
 
-    embedder = DeterministicFakeEmbeddingService(
-        dimension=8
-    )
+    embedder = DeterministicFakeEmbeddingService(dimension=8)
 
-    store = FaissVectorStore(
-        dimension=8
-    )
+    store = FaissVectorStore(dimension=8)
 
     store.add(
         chunks=[chunk],
-        embeddings=embedder.embed_texts(
-            [chunk.text]
-        ),
+        embeddings=embedder.embed_texts([chunk.text]),
     )
 
     index_path = tmp_path / "chunks.faiss"
@@ -252,11 +218,7 @@ def test_save_and_load_store(tmp_path: Path):
         metadata_path=metadata_path,
     )
 
-    results = loaded.search(
-        query_embedding=embedder.embed_query(
-            chunk.text
-        )
-    )
+    results = loaded.search(query_embedding=embedder.embed_query(chunk.text))
 
     assert loaded.size == 1
     assert results[0].chunk.document_id == document_id
@@ -282,35 +244,26 @@ def test_remove_document_rebuilds_index():
         ),
     ]
 
-    embedder = DeterministicFakeEmbeddingService(
-        dimension=8
-    )
+    embedder = DeterministicFakeEmbeddingService(dimension=8)
 
-    store = FaissVectorStore(
-        dimension=8
-    )
+    store = FaissVectorStore(dimension=8)
 
     store.add(
         chunks=chunks,
-        embeddings=embedder.embed_texts(
-            [chunk.text for chunk in chunks]
-        ),
+        embeddings=embedder.embed_texts([chunk.text for chunk in chunks]),
     )
 
-    removed = store.remove_document(
-        first_document
-    )
+    removed = store.remove_document(first_document)
 
     assert removed == 1
     assert store.size == 1
 
     results = store.search(
-        query_embedding=embedder.embed_query(
-            "Second document policy."
-        )
+        query_embedding=embedder.embed_query("Second document policy.")
     )
 
     assert results[0].chunk.document_id == second_document
+
 
 def test_similarity_score_is_clamped_to_valid_range():
     """Floating-point rounding must not produce scores above one."""
@@ -321,17 +274,11 @@ def test_similarity_score_is_clamped_to_valid_range():
         text="Identical text for similarity testing.",
     )
 
-    embedder = DeterministicFakeEmbeddingService(
-        dimension=16
-    )
+    embedder = DeterministicFakeEmbeddingService(dimension=16)
 
-    store = FaissVectorStore(
-        dimension=16
-    )
+    store = FaissVectorStore(dimension=16)
 
-    embedding = embedder.embed_texts(
-        [chunk.text]
-    )
+    embedding = embedder.embed_texts([chunk.text])
 
     store.add(
         chunks=[chunk],

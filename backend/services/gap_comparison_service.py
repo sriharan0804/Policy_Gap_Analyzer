@@ -35,14 +35,10 @@ class ComparisonThresholds:
         )
 
         if any(value < 0.0 or value > 1.0 for value in values):
-            raise ValueError(
-                "Comparison thresholds must be between 0.0 and 1.0."
-            )
+            raise ValueError("Comparison thresholds must be between 0.0 and 1.0.")
 
         if not (
-            self.minimum_evidence
-            <= self.partially_addressed
-            <= self.fully_addressed
+            self.minimum_evidence <= self.partially_addressed <= self.fully_addressed
         ):
             raise ValueError(
                 "Thresholds must satisfy minimum_evidence <= "
@@ -155,9 +151,7 @@ class DeterministicGapComparisonService:
         thresholds: ComparisonThresholds | None = None,
     ) -> None:
         self._thresholds = (
-            thresholds
-            if thresholds is not None
-            else ComparisonThresholds()
+            thresholds if thresholds is not None else ComparisonThresholds()
         )
 
     def compare(
@@ -179,8 +173,7 @@ class DeterministicGapComparisonService:
                 evaluated_policy_count=0,
                 deterministic_score=0.0,
                 rationale=[
-                    "No internal policy statements were available "
-                    "for comparison."
+                    "No internal policy statements were available " "for comparison."
                 ],
                 requires_human_review=True,
             )
@@ -193,11 +186,7 @@ class DeterministicGapComparisonService:
             for statement in statements
         ]
 
-        contradiction_matches = [
-            match
-            for match in matches
-            if match.is_contradiction
-        ]
+        contradiction_matches = [match for match in matches if match.is_contradiction]
 
         if contradiction_matches:
             best_contradiction = max(
@@ -212,9 +201,7 @@ class DeterministicGapComparisonService:
                 status=GapStatus.CONTRADICTED,
                 best_match=best_contradiction,
                 evaluated_policy_count=len(statements),
-                deterministic_score=(
-                    best_contradiction.components.overall_score
-                ),
+                deterministic_score=(best_contradiction.components.overall_score),
                 rationale=[
                     "The strongest related policy statement has an "
                     "opposing obligation or permission.",
@@ -246,15 +233,13 @@ class DeterministicGapComparisonService:
             status=status,
             best_match=best_match,
             evaluated_policy_count=len(statements),
-            deterministic_score=(
-                best_match.components.overall_score
-            ),
+            deterministic_score=(best_match.components.overall_score),
             rationale=rationale,
             requires_human_review=self._requires_review(
-            requirement=requirement,
-            match=best_match,
-            status=status,
-        ),
+                requirement=requirement,
+                match=best_match,
+                status=status,
+            ),
         )
 
     def compare_many(
@@ -369,7 +354,7 @@ class DeterministicGapComparisonService:
             return GapStatus.INSUFFICIENT_EVIDENCE
 
         return GapStatus.NOT_ADDRESSED
-    
+
     def _classify_match(
         self,
         *,
@@ -381,28 +366,16 @@ class DeterministicGapComparisonService:
         components = match.components
 
         missing_required_component = (
-            (
-                requirement.timing is not None
-                and components.timing_score == 0.0
-            )
-            or (
-                requirement.condition is not None
-                and components.condition_score == 0.0
-            )
-        )
+            requirement.timing is not None and components.timing_score == 0.0
+        ) or (requirement.condition is not None and components.condition_score == 0.0)
 
         if missing_required_component:
-            if (
-                components.action_score >= 0.85
-                and components.object_score >= 0.25
-            ):
+            if components.action_score >= 0.85 and components.object_score >= 0.25:
                 return GapStatus.PARTIALLY_ADDRESSED
 
             return GapStatus.INSUFFICIENT_EVIDENCE
 
-        return self._classify_score(
-            components.overall_score
-        )
+        return self._classify_score(components.overall_score)
 
     def _calculate_action_score(
         self,
@@ -454,13 +427,9 @@ class DeterministicGapComparisonService:
         if not left_tokens or not right_tokens:
             return 0.0
 
-        intersection = left_tokens.intersection(
-            right_tokens
-        )
+        intersection = left_tokens.intersection(right_tokens)
 
-        union = left_tokens.union(
-            right_tokens
-        )
+        union = left_tokens.union(right_tokens)
 
         if not union:
             return 0.0
@@ -483,13 +452,9 @@ class DeterministicGapComparisonService:
         if policy_value is None:
             return 0.0
 
-        normalized_requirement = self._normalize_phrase(
-            requirement_value
-        )
+        normalized_requirement = self._normalize_phrase(requirement_value)
 
-        normalized_policy = self._normalize_phrase(
-            policy_value
-        )
+        normalized_policy = self._normalize_phrase(policy_value)
 
         if normalized_requirement == normalized_policy:
             return 1.0
@@ -508,16 +473,10 @@ class DeterministicGapComparisonService:
         """Measure whether policy strength aligns with regulatory modality."""
 
         if requirement.modality == RequirementModality.PROHIBITED:
-            if (
-                statement.statement_type
-                == PolicyStatementType.PROHIBITION
-            ):
+            if statement.statement_type == PolicyStatementType.PROHIBITION:
                 return 1.0
 
-            if (
-                statement.statement_type
-                == PolicyStatementType.PERMISSION
-            ):
+            if statement.statement_type == PolicyStatementType.PERMISSION:
                 return 0.0
 
             return 0.35
@@ -531,25 +490,16 @@ class DeterministicGapComparisonService:
             }:
                 return 1.0
 
-            if (
-                statement.statement_type
-                == PolicyStatementType.PERMISSION
-            ):
+            if statement.statement_type == PolicyStatementType.PERMISSION:
                 return 0.25
 
-            if (
-                statement.statement_type
-                == PolicyStatementType.PROHIBITION
-            ):
+            if statement.statement_type == PolicyStatementType.PROHIBITION:
                 return 0.0
 
             return 0.4
 
         if requirement.modality == RequirementModality.PERMISSIVE:
-            if (
-                statement.statement_type
-                == PolicyStatementType.PERMISSION
-            ):
+            if statement.statement_type == PolicyStatementType.PERMISSION:
                 return 1.0
 
             return 0.6
@@ -569,25 +519,16 @@ class DeterministicGapComparisonService:
     ) -> bool:
         """Detect explicit opposing treatment of a related activity."""
 
-        is_related = (
-            action_score >= 0.85
-            and object_score >= 0.25
-        )
+        is_related = action_score >= 0.85 and object_score >= 0.25
 
         if not is_related:
             return False
 
         if requirement.modality == RequirementModality.PROHIBITED:
-            return (
-                statement.statement_type
-                == PolicyStatementType.PERMISSION
-            )
+            return statement.statement_type == PolicyStatementType.PERMISSION
 
         if requirement.modality == RequirementModality.MANDATORY:
-            return (
-                statement.statement_type
-                == PolicyStatementType.PROHIBITION
-            )
+            return statement.statement_type == PolicyStatementType.PROHIBITION
 
         return False
 
@@ -610,24 +551,17 @@ class DeterministicGapComparisonService:
         ]
 
         if requirement.timing is not None:
-            weighted_items.append(
-                (timing_score, 0.12)
-            )
+            weighted_items.append((timing_score, 0.12))
 
         if requirement.condition is not None:
-            weighted_items.append(
-                (condition_score, 0.08)
-            )
+            weighted_items.append((condition_score, 0.08))
 
-        total_weight = sum(
-            weight
-            for _, weight in weighted_items
+        total_weight = sum(weight for _, weight in weighted_items)
+
+        score = (
+            sum(component * weight for component, weight in weighted_items)
+            / total_weight
         )
-
-        score = sum(
-            component * weight
-            for component, weight in weighted_items
-        ) / total_weight
 
         return round(
             max(0.0, min(1.0, score)),
@@ -651,22 +585,14 @@ class DeterministicGapComparisonService:
         reasons: list[str] = []
 
         if action_score >= 0.9:
-            reasons.append(
-                "The policy action closely matches the regulatory action."
-            )
+            reasons.append("The policy action closely matches the regulatory action.")
         elif action_score == 0.0:
-            reasons.append(
-                "The policy action does not match the regulatory action."
-            )
+            reasons.append("The policy action does not match the regulatory action.")
         else:
-            reasons.append(
-                "The policy action is only partially aligned."
-            )
+            reasons.append("The policy action is only partially aligned.")
 
         if object_score >= 0.7:
-            reasons.append(
-                "The policy covers substantially similar subject matter."
-            )
+            reasons.append("The policy covers substantially similar subject matter.")
         elif object_score >= 0.25:
             reasons.append(
                 "The policy covers some, but not all, relevant subject matter."
@@ -678,32 +604,22 @@ class DeterministicGapComparisonService:
 
         if requirement.timing is not None:
             if timing_score >= 0.9:
-                reasons.append(
-                    "The policy timing matches the regulatory timing."
-                )
+                reasons.append("The policy timing matches the regulatory timing.")
             elif statement.timing is None:
                 reasons.append(
                     "The regulatory timing requirement is absent "
                     "from the policy statement."
                 )
             else:
-                reasons.append(
-                    "The policy timing differs from the regulatory timing."
-                )
+                reasons.append("The policy timing differs from the regulatory timing.")
 
         if requirement.condition is not None:
             if condition_score >= 0.9:
-                reasons.append(
-                    "The regulatory condition is represented in the policy."
-                )
+                reasons.append("The regulatory condition is represented in the policy.")
             elif statement.condition is None:
-                reasons.append(
-                    "The regulatory condition is absent from the policy."
-                )
+                reasons.append("The regulatory condition is absent from the policy.")
             else:
-                reasons.append(
-                    "The policy condition only partially matches."
-                )
+                reasons.append("The policy condition only partially matches.")
 
         if modality_score < 0.5:
             reasons.append(
@@ -732,16 +648,10 @@ class DeterministicGapComparisonService:
 
         components = match.components
 
-        if (
-            requirement.timing is not None
-            and components.timing_score < 1.0
-        ):
+        if requirement.timing is not None and components.timing_score < 1.0:
             return True
 
-        if (
-            requirement.condition is not None
-            and components.condition_score < 1.0
-        ):
+        if requirement.condition is not None and components.condition_score < 1.0:
             return True
 
         if components.overall_score < 0.90:
@@ -762,9 +672,7 @@ class DeterministicGapComparisonService:
         )
 
         return {
-            cls._singularize(token)
-            for token in tokens
-            if token not in cls._STOP_WORDS
+            cls._singularize(token) for token in tokens if token not in cls._STOP_WORDS
         }
 
     @staticmethod
@@ -800,8 +708,12 @@ class DeterministicGapComparisonService:
     ) -> str:
         """Normalize spaces and case for exact phrase comparisons."""
 
-        return re.sub(
-            r"\s+",
-            " ",
-            value,
-        ).strip().lower()
+        return (
+            re.sub(
+                r"\s+",
+                " ",
+                value,
+            )
+            .strip()
+            .lower()
+        )

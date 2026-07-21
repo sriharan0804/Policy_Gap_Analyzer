@@ -20,9 +20,7 @@ class DeterministicFakeEmbeddingService:
 
     def __init__(self, dimension: int = 8) -> None:
         if dimension <= 0:
-            raise ValueError(
-                "dimension must be greater than zero."
-            )
+            raise ValueError("dimension must be greater than zero.")
 
         self._dimension = dimension
 
@@ -39,9 +37,7 @@ class DeterministicFakeEmbeddingService:
         """Generate deterministic normalized vectors."""
 
         if not texts:
-            raise EmptyEmbeddingInputError(
-                "At least one text is required."
-            )
+            raise EmptyEmbeddingInputError("At least one text is required.")
 
         vectors: list[np.ndarray] = []
 
@@ -51,9 +47,7 @@ class DeterministicFakeEmbeddingService:
                     f"Text at index {index} cannot be empty."
                 )
 
-            vectors.append(
-                self._vector_from_text(text.strip())
-            )
+            vectors.append(self._vector_from_text(text.strip()))
 
         return np.vstack(vectors).astype(np.float32)
 
@@ -61,9 +55,7 @@ class DeterministicFakeEmbeddingService:
         """Generate one deterministic query vector."""
 
         if not query or not query.strip():
-            raise EmptyEmbeddingInputError(
-                "The query cannot be empty."
-            )
+            raise EmptyEmbeddingInputError("The query cannot be empty.")
 
         return self.embed_texts([query])
 
@@ -74,9 +66,7 @@ class DeterministicFakeEmbeddingService:
         counter = 0
 
         while len(values) < self._dimension:
-            digest = hashlib.sha256(
-                f"{text}:{counter}".encode("utf-8")
-            ).digest()
+            digest = hashlib.sha256(f"{text}:{counter}".encode("utf-8")).digest()
 
             for byte in digest:
                 value = (float(byte) / 127.5) - 1.0

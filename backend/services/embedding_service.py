@@ -13,7 +13,6 @@ from backend.exceptions import (
     EmptyEmbeddingInputError,
 )
 
-
 EmbeddingMatrix = NDArray[np.float32]
 
 
@@ -53,9 +52,7 @@ class SentenceTransformerEmbeddingService:
             raise ValueError("model_name cannot be empty.")
 
         if batch_size <= 0:
-            raise ValueError(
-                "batch_size must be greater than zero."
-            )
+            raise ValueError("batch_size must be greater than zero.")
 
         self._model_name = model_name
         self._batch_size = batch_size
@@ -121,9 +118,7 @@ class SentenceTransformerEmbeddingService:
         """Generate a normalized matrix containing one query vector."""
 
         if not query or not query.strip():
-            raise EmptyEmbeddingInputError(
-                "The query cannot be empty."
-            )
+            raise EmptyEmbeddingInputError("The query cannot be empty.")
 
         return self.embed_texts([query])
 
@@ -155,9 +150,7 @@ class SentenceTransformerEmbeddingService:
         """Return validated texts while preserving order."""
 
         if not texts:
-            raise EmptyEmbeddingInputError(
-                "At least one text is required."
-            )
+            raise EmptyEmbeddingInputError("At least one text is required.")
 
         validated: list[str] = []
 
@@ -197,11 +190,7 @@ class SentenceTransformerEmbeddingService:
             )
 
         if matrix.shape[1] <= 0:
-            raise EmbeddingModelError(
-                "Embedding vectors cannot have zero dimensions."
-            )
+            raise EmbeddingModelError("Embedding vectors cannot have zero dimensions.")
 
         if not np.isfinite(matrix).all():
-            raise EmbeddingModelError(
-                "Embedding vectors contain non-finite values."
-            )
+            raise EmbeddingModelError("Embedding vectors contain non-finite values.")

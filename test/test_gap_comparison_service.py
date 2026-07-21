@@ -24,9 +24,7 @@ def make_requirement(
     object_text: str | None = "customer account records",
     timing: str | None = None,
     condition: str | None = None,
-    modality: RequirementModality = (
-        RequirementModality.MANDATORY
-    ),
+    modality: RequirementModality = (RequirementModality.MANDATORY),
 ) -> RequirementCandidate:
     """Create a valid regulatory requirement candidate."""
 
@@ -35,9 +33,7 @@ def make_requirement(
         chunk_id=uuid4(),
         page_number=2,
         chunk_index=3,
-        source_text=(
-            "The firm must retain customer account records."
-        ),
+        source_text=("The firm must retain customer account records."),
         subject="The firm",
         action=action,
         object=object_text,
@@ -55,12 +51,8 @@ def make_policy(
     object_text: str | None = "customer account records",
     timing: str | None = None,
     condition: str | None = None,
-    statement_type: PolicyStatementType = (
-        PolicyStatementType.RECORD_RETENTION
-    ),
-    source_text: str = (
-        "Records staff must retain customer account records."
-    ),
+    statement_type: PolicyStatementType = (PolicyStatementType.RECORD_RETENTION),
+    source_text: str = ("Records staff must retain customer account records."),
 ) -> PolicyStatement:
     """Create a valid internal policy statement."""
 
@@ -107,9 +99,7 @@ def test_identical_requirement_is_fully_addressed():
         [policy],
     )
 
-    assert assessment.status == (
-        GapStatus.FULLY_ADDRESSED
-    )
+    assert assessment.status == (GapStatus.FULLY_ADDRESSED)
     assert assessment.best_match is not None
     assert assessment.deterministic_score >= 0.82
 
@@ -131,10 +121,7 @@ def test_action_synonym_can_match():
     )
 
     assert assessment.best_match is not None
-    assert (
-        assessment.best_match.components.action_score
-        >= 0.9
-    )
+    assert assessment.best_match.components.action_score >= 0.9
 
 
 def test_missing_timing_creates_partial_gap():
@@ -153,14 +140,9 @@ def test_missing_timing_creates_partial_gap():
         [policy],
     )
 
-    assert assessment.status == (
-        GapStatus.PARTIALLY_ADDRESSED
-    )
+    assert assessment.status == (GapStatus.PARTIALLY_ADDRESSED)
     assert assessment.best_match is not None
-    assert (
-        assessment.best_match.components.timing_score
-        == 0.0
-    )
+    assert assessment.best_match.components.timing_score == 0.0
 
 
 def test_unrelated_policy_is_not_addressed():
@@ -200,9 +182,7 @@ def test_no_policy_evidence_is_not_addressed():
         [],
     )
 
-    assert assessment.status == (
-        GapStatus.NOT_ADDRESSED
-    )
+    assert assessment.status == (GapStatus.NOT_ADDRESSED)
     assert assessment.best_match is None
     assert assessment.evaluated_policy_count == 0
     assert assessment.deterministic_score == 0.0
@@ -219,9 +199,7 @@ def test_mandatory_requirement_conflicts_with_prohibition():
         action="retain",
         object_text="customer account records",
         statement_type=PolicyStatementType.PROHIBITION,
-        source_text=(
-            "Employees must not retain customer account records."
-        ),
+        source_text=("Employees must not retain customer account records."),
     )
 
     service = DeterministicGapComparisonService()
@@ -231,9 +209,7 @@ def test_mandatory_requirement_conflicts_with_prohibition():
         [policy],
     )
 
-    assert assessment.status == (
-        GapStatus.CONTRADICTED
-    )
+    assert assessment.status == (GapStatus.CONTRADICTED)
     assert assessment.best_match is not None
     assert assessment.best_match.is_contradiction is True
 
@@ -249,10 +225,7 @@ def test_prohibition_conflicts_with_permission():
         action="disclose",
         object_text="confidential customer information",
         statement_type=PolicyStatementType.PERMISSION,
-        source_text=(
-            "Employees may disclose confidential "
-            "customer information."
-        ),
+        source_text=("Employees may disclose confidential " "customer information."),
     )
 
     service = DeterministicGapComparisonService()
@@ -262,9 +235,7 @@ def test_prohibition_conflicts_with_permission():
         [policy],
     )
 
-    assert assessment.status == (
-        GapStatus.CONTRADICTED
-    )
+    assert assessment.status == (GapStatus.CONTRADICTED)
 
 
 def test_best_policy_match_is_selected():
@@ -295,10 +266,7 @@ def test_best_policy_match_is_selected():
     )
 
     assert assessment.best_match is not None
-    assert (
-        assessment.best_match.policy_statement_id
-        == related.statement_id
-    )
+    assert assessment.best_match.policy_statement_id == related.statement_id
 
     assert assessment.evaluated_policy_count == 2
 
@@ -325,10 +293,7 @@ def test_missing_condition_reduces_score():
     )
 
     assert assessment.best_match is not None
-    assert (
-        assessment.best_match.components.condition_score
-        == 0.0
-    )
+    assert assessment.best_match.components.condition_score == 0.0
     assert assessment.requires_human_review is True
 
 
@@ -346,18 +311,9 @@ def test_comparison_preserves_policy_provenance():
     match = assessment.best_match
 
     assert match is not None
-    assert (
-        match.policy_statement_id
-        == policy.statement_id
-    )
-    assert (
-        match.policy_document_id
-        == policy.document_id
-    )
-    assert (
-        match.policy_chunk_id
-        == policy.chunk_id
-    )
+    assert match.policy_statement_id == policy.statement_id
+    assert match.policy_document_id == policy.document_id
+    assert match.policy_chunk_id == policy.chunk_id
     assert match.page_number == policy.page_number
     assert match.chunk_index == policy.chunk_index
 
@@ -393,14 +349,8 @@ def test_compare_many_preserves_requirement_order():
     )
 
     assert len(assessments) == 2
-    assert (
-        assessments[0].requirement_id
-        == first.requirement_id
-    )
-    assert (
-        assessments[1].requirement_id
-        == second.requirement_id
-    )
+    assert assessments[0].requirement_id == first.requirement_id
+    assert assessments[1].requirement_id == second.requirement_id
 
 
 @pytest.mark.parametrize(
@@ -424,6 +374,7 @@ def test_invalid_thresholds_are_rejected(
             minimum_evidence=minimum,
         )
 
+
 def test_missing_required_timing_cannot_be_fully_addressed():
     """A missing regulatory timing component must prevent full coverage."""
 
@@ -442,11 +393,10 @@ def test_missing_required_timing_cannot_be_fully_addressed():
         [policy],
     )
 
-    assert assessment.status != (
-        GapStatus.FULLY_ADDRESSED
-    )
+    assert assessment.status != (GapStatus.FULLY_ADDRESSED)
 
     assert assessment.requires_human_review is True
+
 
 def test_missing_required_condition_cannot_be_fully_addressed():
     """A missing regulatory condition must prevent full coverage."""
@@ -471,8 +421,6 @@ def test_missing_required_condition_cannot_be_fully_addressed():
         [policy],
     )
 
-    assert assessment.status == (
-        GapStatus.PARTIALLY_ADDRESSED
-    )
+    assert assessment.status == (GapStatus.PARTIALLY_ADDRESSED)
 
     assert assessment.requires_human_review is True
