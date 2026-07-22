@@ -36,3 +36,5 @@ httpx>=0.28,<1.0
 sentence-transformers>=3.3,<6.0
 faiss-cpu>=1.9,<2.0
 numpy>=1.26,<3.0
+streamlit>=1.40,<2.0
+requests>=2.32,<3.0

@@ -26,6 +26,7 @@ from backend.models import (
     ValidationResult,
     ValidationStatus,
     AnalysisResult,
+    GapExplanation,
 )
 
 VALID_CHECKSUM = "a" * 64
@@ -288,3 +289,62 @@ def test_analysis_result_can_be_created():
     assert result.risk_assessments == []
     assert result.analysis_id is not None
     assert result.created_at is not None
+
+
+def test_gap_explanation_accepts_valid_values():
+    requirement_id = uuid4()
+
+    explanation = GapExplanation(
+        requirement_id=requirement_id,
+        requirement_summary="The organization must retain customer records.",
+        policy_summary="The policy requires customer record retention.",
+        gap_reason="The policy does not define the required retention duration.",
+        confidence_reason=(
+            "Confidence is high because the requirement and policy evidence "
+            "refer to the same record-retention obligation."
+        ),
+        risk_reason=(
+            "The gap presents high risk because the requirement is mandatory "
+            "and applies to confidential information."
+        ),
+        recommended_action=(
+            "Update the policy to define the required retention duration."
+        ),
+        requires_human_review=True,
+    )
+
+    assert explanation.requirement_id == requirement_id
+    assert explanation.requirement_summary == (
+        "The organization must retain customer records."
+    )
+    assert explanation.policy_summary == (
+        "The policy requires customer record retention."
+    )
+    assert explanation.requires_human_review is True
+
+
+def test_gap_explanation_rejects_empty_explanation_text():
+    with pytest.raises(ValidationError):
+        GapExplanation(
+            requirement_id=uuid4(),
+            requirement_summary="",
+            policy_summary="Policy evidence was identified.",
+            gap_reason="The required duration is missing.",
+            confidence_reason="The evidence is sufficiently similar.",
+            risk_reason="The requirement is mandatory.",
+            recommended_action="Update the policy.",
+        )
+
+
+def test_gap_explanation_requires_human_review_by_default():
+    explanation = GapExplanation(
+        requirement_id=uuid4(),
+        requirement_summary="The organization must protect customer records.",
+        policy_summary="The policy describes access controls.",
+        gap_reason="The policy does not fully address record encryption.",
+        confidence_reason="Relevant policy evidence was found.",
+        risk_reason="Customer information may be exposed.",
+        recommended_action="Add explicit encryption requirements.",
+    )
+
+    assert explanation.requires_human_review is True

@@ -95,6 +95,24 @@ class ReviewDecision(StrEnum):
     NOT_APPLICABLE = "not_applicable"
 
 
+class GapReviewStatus(StrEnum):
+    """Workflow state for a human review of a deterministic gap assessment."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    NEEDS_REVISION = "needs_revision"
+
+
+class GapReviewerDecision(StrEnum):
+    """Decision recorded by a reviewer for a gap assessment."""
+
+    ACCEPT_AUTOMATED_RESULT = "accept_automated_result"
+    OVERRIDE_GAP_STATUS = "override_gap_status"
+    REQUEST_MORE_EVIDENCE = "request_more_evidence"
+    ESCALATE = "escalate"
+
+
 class ValidationStatus(StrEnum):
     NOT_RUN = "not_run"
     PASSED = "passed"
@@ -704,3 +722,208 @@ class AnalysisResult(BaseModel):
     risk_assessments: list[GapRiskAssessment]
 
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    explanations: list[GapExplanation] = Field(default_factory=list)
+
+
+class GapExplanation(DomainModel):
+    """Human-readable explanation of a deterministic gap assessment."""
+
+    requirement_id: UUID
+
+    requirement_summary: NonEmptyText
+    policy_summary: NonEmptyText
+    gap_reason: NonEmptyText
+    confidence_reason: NonEmptyText
+    risk_reason: NonEmptyText
+
+    recommended_action: NonEmptyText
+
+    requires_human_review: bool = True
+
+class ReportSummary(DomainModel):
+    """Aggregated statistics for a compliance analysis report."""
+
+    total_requirements: int = Field(ge=0)
+
+    fully_addressed_count: int = Field(ge=0)
+    partially_addressed_count: int = Field(ge=0)
+    not_addressed_count: int = Field(ge=0)
+    contradicted_count: int = Field(ge=0)
+    insufficient_evidence_count: int = Field(ge=0)
+
+    high_risk_count: int = Field(ge=0)
+    critical_risk_count: int = Field(ge=0)
+
+    compliance_score: float = Field(ge=0.0, le=1.0)
+    human_review_required_count: int = Field(ge=0)
+
+    @model_validator(mode="after")
+    def validate_gap_totals(self) -> "ReportSummary":
+        classified_total = (
+            self.fully_addressed_count
+            + self.partially_addressed_count
+            + self.not_addressed_count
+            + self.contradicted_count
+            + self.insufficient_evidence_count
+        )
+
+        if classified_total != self.total_requirements:
+            raise ValueError(
+                "Gap classification counts must equal total_requirements."
+            )
+
+        if self.high_risk_count + self.critical_risk_count > self.total_requirements:
+            raise ValueError(
+                "High-risk and critical-risk counts cannot exceed "
+                "total_requirements."
+            )
+
+        if self.human_review_required_count > self.total_requirements:
+            raise ValueError(
+                "human_review_required_count cannot exceed total_requirements."
+            )
+
+        return self
+
+
+class RequirementReport(DomainModel):
+    """Human-readable report entry for one regulatory requirement."""
+
+    requirement_id: UUID
+    gap_assessment_id: UUID
+
+    requirement_summary: NonEmptyText
+    policy_summary: NonEmptyText
+
+    gap_status: GapStatus
+    gap_reason: NonEmptyText
+
+    confidence_score: float = Field(ge=0.0, le=1.0)
+    confidence_level: GapConfidenceLevel
+    confidence_reason: NonEmptyText
+
+    risk_score: float = Field(ge=0.0, le=1.0)
+    risk_level: RiskLevel
+    risk_reason: NonEmptyText
+
+    recommended_action: NonEmptyText
+
+    requires_human_review: bool = True
+    review_status: GapReviewStatus = GapReviewStatus.PENDING
+    reviewer_decision: GapReviewerDecision | None = None
+
+    effective_gap_status: GapStatus
+
+    @model_validator(mode="after")
+    def validate_review_decision(self) -> "RequirementReport":
+        if (
+            self.review_status == GapReviewStatus.PENDING
+            and self.reviewer_decision is not None
+        ):
+            raise ValueError(
+                "reviewer_decision must be empty while review is pending."
+            )
+
+        if (
+            self.review_status != GapReviewStatus.PENDING
+            and self.reviewer_decision is None
+        ):
+            raise ValueError(
+                "reviewer_decision is required for a completed review."
+            )
+
+        return self
+
+
+class ComplianceReport(DomainModel):
+    """Final structured compliance report generated from an analysis result."""
+
+    report_id: UUID = Field(default_factory=uuid4)
+    analysis_id: UUID
+
+    regulatory_document_id: UUID
+    policy_document_id: UUID
+
+    summary: ReportSummary
+    requirement_reports: list[RequirementReport] = Field(default_factory=list)
+
+    generated_at: datetime = Field(default_factory=utc_now)
+    report_version: NonEmptyText = "1.0"
+
+    @model_validator(mode="after")
+    def validate_report_totals(self) -> "ComplianceReport":
+        if self.summary.total_requirements != len(self.requirement_reports):
+            raise ValueError(
+                "summary.total_requirements must match requirement_reports."
+            )
+
+        return self
+
+
+class GapHumanReview(DomainModel):
+    """Auditable human decision attached to an automated gap assessment.
+
+    The original automated gap status is preserved. Any reviewer override is
+    stored separately so the system retains a complete compliance audit trail.
+    """
+
+    review_id: UUID = Field(default_factory=uuid4)
+
+    gap_assessment_id: UUID
+    requirement_id: UUID
+
+    status: GapReviewStatus = GapReviewStatus.PENDING
+    decision: GapReviewerDecision | None = None
+
+    reviewer_id: NonEmptyText | None = None
+    reviewer_notes: NonEmptyText | None = None
+
+    original_gap_status: GapStatus
+    overridden_gap_status: GapStatus | None = None
+
+    reviewed_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_review_state(self) -> "GapHumanReview":
+        """Keep review metadata consistent with the workflow state."""
+
+        if self.status == GapReviewStatus.PENDING:
+            if self.decision is not None:
+                raise ValueError("decision must be empty while the review is pending")
+
+            if self.overridden_gap_status is not None:
+                raise ValueError("overridden_gap_status is not allowed while pending")
+
+            if self.reviewed_at is not None:
+                raise ValueError(
+                    "reviewed_at must be empty while the review is pending"
+                )
+
+            return self
+
+        if self.decision is None:
+            raise ValueError("decision is required for a completed human review")
+
+        if self.reviewer_id is None:
+            raise ValueError("reviewer_id is required for a completed human review")
+
+        if self.reviewed_at is None:
+            raise ValueError("reviewed_at is required for a completed human review")
+
+        if (
+            self.decision == GapReviewerDecision.OVERRIDE_GAP_STATUS
+            and self.overridden_gap_status is None
+        ):
+            raise ValueError(
+                "overridden_gap_status is required when overriding gap status"
+            )
+
+        if (
+            self.decision != GapReviewerDecision.OVERRIDE_GAP_STATUS
+            and self.overridden_gap_status is not None
+        ):
+            raise ValueError(
+                "overridden_gap_status is only allowed for an override decision"
+            )
+
+        return self

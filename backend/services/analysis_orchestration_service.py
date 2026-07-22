@@ -20,10 +20,13 @@ class AnalysisOrchestrator(Protocol):
         policy_chunks: list[DocumentChunk],
         regulatory_impact: RegulatoryImpact,
         data_sensitivity: DataSensitivity,
-    ) -> AnalysisResult: ...
+    ) -> AnalysisResult:
+        ...
 
 
 class AnalysisOrchestrationService:
+    """Coordinates the complete deterministic policy gap analysis pipeline."""
+
     def __init__(
         self,
         *,
@@ -32,12 +35,14 @@ class AnalysisOrchestrationService:
         gap_comparer: Any,
         confidence_scorer: Any,
         risk_scorer: Any,
+        explanation_service: Any,
     ) -> None:
         self._requirement_extractor = requirement_extractor
         self._policy_extractor = policy_extractor
         self._gap_comparer = gap_comparer
         self._confidence_scorer = confidence_scorer
         self._risk_scorer = risk_scorer
+        self._explanation_service = explanation_service
 
     def analyze(
         self,
@@ -67,13 +72,16 @@ class AnalysisOrchestrationService:
         )
 
         requirements_by_id = {
-            requirement.requirement_id: requirement for requirement in requirements
+            requirement.requirement_id: requirement
+            for requirement in requirements
         }
 
         confidence_assessments = []
 
         for gap_assessment in gap_assessments:
-            requirement = requirements_by_id[gap_assessment.requirement_id]
+            requirement = requirements_by_id[
+                gap_assessment.requirement_id
+            ]
 
             confidence_assessment = self._confidence_scorer.score(
                 requirement,
@@ -91,7 +99,9 @@ class AnalysisOrchestrationService:
         risk_assessments = []
 
         for gap_assessment in gap_assessments:
-            requirement = requirements_by_id[gap_assessment.requirement_id]
+            requirement = requirements_by_id[
+                gap_assessment.requirement_id
+            ]
 
             confidence_assessment = confidence_by_requirement_id[
                 gap_assessment.requirement_id
@@ -107,6 +117,35 @@ class AnalysisOrchestrationService:
 
             risk_assessments.append(risk_assessment)
 
+        risk_by_requirement_id = {
+            assessment.requirement_id: assessment
+            for assessment in risk_assessments
+        }
+
+        explanations = []
+
+        for gap_assessment in gap_assessments:
+            requirement = requirements_by_id[
+                gap_assessment.requirement_id
+            ]
+
+            confidence_assessment = confidence_by_requirement_id[
+                gap_assessment.requirement_id
+            ]
+
+            risk_assessment = risk_by_requirement_id[
+                gap_assessment.requirement_id
+            ]
+
+            explanation = self._explanation_service.explain(
+                requirement,
+                gap_assessment,
+                confidence_assessment,
+                risk_assessment,
+            )
+
+            explanations.append(explanation)
+
         return AnalysisResult(
             regulatory_document_id=regulatory_document_id,
             policy_document_id=policy_document_id,
@@ -115,4 +154,6 @@ class AnalysisOrchestrationService:
             gap_assessments=gap_assessments,
             confidence_assessments=confidence_assessments,
             risk_assessments=risk_assessments,
+            explanations=explanations,
         )
+

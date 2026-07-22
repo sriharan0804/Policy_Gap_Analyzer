@@ -1,5 +1,3 @@
-"""Deterministic extraction of regulatory requirement candidates."""
-
 from __future__ import annotations
 
 import re
@@ -289,7 +287,12 @@ class RuleBasedRequirementExtractionService:
     def _extract_action_and_object(
         remainder: str,
     ) -> tuple[str, str | None]:
-        """Extract the leading action verb and remaining object text."""
+        """Extract and normalize the leading action verb and object text.
+
+        Passive constructions such as ``be performed`` and ``be encrypted``
+        are normalized to their active base verbs so the comparator can match
+        them against policy statements such as ``perform`` and ``encrypt``.
+        """
 
         normalized = remainder.strip().rstrip(".")
 
@@ -298,13 +301,64 @@ class RuleBasedRequirementExtractionService:
 
         words = normalized.split()
 
-        action = words[0].lower()
-        object_text = " ".join(words[1:]).strip()
+        if len(words) >= 2 and words[0].lower() == "be":
+            passive_verb = words[1].lower()
+            action = RuleBasedRequirementExtractionService._normalize_passive_verb(
+                passive_verb
+            )
+            object_text = " ".join(words[2:]).strip()
+        else:
+            action = words[0].lower()
+            object_text = " ".join(words[1:]).strip()
 
         return (
             action,
             object_text or None,
         )
+
+    @staticmethod
+    def _normalize_passive_verb(passive_verb: str) -> str:
+        """Convert common passive verb forms to active base forms."""
+
+        irregular_forms = {
+            "required": "require",
+            "reported": "report",
+            "performed": "perform",
+            "encrypted": "encrypt",
+            "retained": "retain",
+            "reviewed": "review",
+            "stored": "store",
+            "maintained": "maintain",
+            "documented": "document",
+            "implemented": "implement",
+            "monitored": "monitor",
+            "protected": "protect",
+            "approved": "approve",
+            "completed": "complete",
+            "provided": "provide",
+        }
+
+        if passive_verb in irregular_forms:
+            return irregular_forms[passive_verb]
+
+        if passive_verb.endswith("ied") and len(passive_verb) > 3:
+            return passive_verb[:-3] + "y"
+
+        if passive_verb.endswith("ed") and len(passive_verb) > 2:
+            stem = passive_verb[:-2]
+
+            if stem.endswith(("at", "iz")):
+                return stem + "e"
+
+            if len(stem) >= 2 and stem[-1] == stem[-2]:
+                stem = stem[:-1]
+
+            return stem
+
+        if passive_verb.endswith("en") and len(passive_verb) > 2:
+            return passive_verb[:-2]
+
+        return passive_verb
 
     @staticmethod
     def _extract_first_match(

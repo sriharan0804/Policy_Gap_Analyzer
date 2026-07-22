@@ -6,6 +6,7 @@ from backend.models import (
     DocumentChunk,
     GapAssessment,
     GapConfidenceAssessment,
+    GapExplanation,
     GapRiskAssessment,
     PolicyStatement,
     PolicyStatementType,
@@ -26,6 +27,7 @@ def build_service(
     gap_comparer=None,
     confidence_scorer=None,
     risk_scorer=None,
+    explanation_service=None,
 ) -> AnalysisOrchestrationService:
     return AnalysisOrchestrationService(
         requirement_extractor=requirement_extractor or Mock(),
@@ -33,6 +35,7 @@ def build_service(
         gap_comparer=gap_comparer or Mock(),
         confidence_scorer=confidence_scorer or Mock(),
         risk_scorer=risk_scorer or Mock(),
+        explanation_service=explanation_service or Mock(),
     )
 
 
@@ -65,6 +68,7 @@ def test_service_stores_injected_dependencies():
     gap_comparer = Mock()
     confidence_scorer = Mock()
     risk_scorer = Mock()
+    explanation_service = Mock()
 
     service = AnalysisOrchestrationService(
         requirement_extractor=requirement_extractor,
@@ -72,6 +76,7 @@ def test_service_stores_injected_dependencies():
         gap_comparer=gap_comparer,
         confidence_scorer=confidence_scorer,
         risk_scorer=risk_scorer,
+        explanation_service=explanation_service,
     )
 
     assert service._requirement_extractor is requirement_extractor
@@ -79,6 +84,7 @@ def test_service_stores_injected_dependencies():
     assert service._gap_comparer is gap_comparer
     assert service._confidence_scorer is confidence_scorer
     assert service._risk_scorer is risk_scorer
+    assert service._explanation_service is explanation_service
 
 
 def test_analyze_extracts_requirements_and_policy_statements():
@@ -140,6 +146,7 @@ def test_analyze_extracts_requirements_and_policy_statements():
 
     confidence_scorer = Mock()
     risk_scorer = Mock()
+    explanation_service = Mock()
 
     service = build_service(
         requirement_extractor=requirement_extractor,
@@ -147,6 +154,7 @@ def test_analyze_extracts_requirements_and_policy_statements():
         gap_comparer=gap_comparer,
         confidence_scorer=confidence_scorer,
         risk_scorer=risk_scorer,
+        explanation_service=explanation_service,
     )
 
     result = service.analyze(
@@ -163,6 +171,7 @@ def test_analyze_extracts_requirements_and_policy_statements():
     assert result.gap_assessments == []
     assert result.confidence_assessments == []
     assert result.risk_assessments == []
+    assert result.explanations == []
 
     requirement_extractor.extract.assert_called_once_with(regulatory_chunk)
     policy_extractor.extract.assert_called_once_with(policy_chunk)
@@ -174,6 +183,7 @@ def test_analyze_extracts_requirements_and_policy_statements():
 
     confidence_scorer.score.assert_not_called()
     risk_scorer.score.assert_not_called()
+    explanation_service.explain.assert_not_called()
 
 
 def test_analyze_handles_empty_chunk_lists():
@@ -185,6 +195,7 @@ def test_analyze_handles_empty_chunk_lists():
 
     confidence_scorer = Mock()
     risk_scorer = Mock()
+    explanation_service = Mock()
 
     service = build_service(
         requirement_extractor=requirement_extractor,
@@ -192,6 +203,7 @@ def test_analyze_handles_empty_chunk_lists():
         gap_comparer=gap_comparer,
         confidence_scorer=confidence_scorer,
         risk_scorer=risk_scorer,
+        explanation_service=explanation_service,
     )
 
     result = service.analyze(
@@ -208,6 +220,7 @@ def test_analyze_handles_empty_chunk_lists():
     assert result.gap_assessments == []
     assert result.confidence_assessments == []
     assert result.risk_assessments == []
+    assert result.explanations == []
 
     requirement_extractor.extract.assert_not_called()
     policy_extractor.extract.assert_not_called()
@@ -215,9 +228,10 @@ def test_analyze_handles_empty_chunk_lists():
     gap_comparer.compare_many.assert_called_once_with([], [])
     confidence_scorer.score.assert_not_called()
     risk_scorer.score.assert_not_called()
+    explanation_service.explain.assert_not_called()
 
 
-def test_analyze_scores_confidence_and_risk_for_each_gap_assessment():
+def test_analyze_scores_and_explains_each_gap_assessment():
     regulatory_document_id = uuid4()
     policy_document_id = uuid4()
 
@@ -277,6 +291,17 @@ def test_analyze_scores_confidence_and_risk_for_each_gap_assessment():
         requirement_id=requirement.requirement_id,
     )
 
+    explanation = GapExplanation(
+        requirement_id=requirement.requirement_id,
+        requirement_summary=requirement.source_text,
+        policy_summary=policy_statement.source_text,
+        gap_reason="The policy does not fully cover the requirement.",
+        confidence_reason="Confidence is high.",
+        risk_reason="Risk is high.",
+        recommended_action="Review and strengthen the policy.",
+        requires_human_review=True,
+    )
+
     requirement_extractor = Mock()
     requirement_extractor.extract.return_value = [requirement]
 
@@ -292,12 +317,16 @@ def test_analyze_scores_confidence_and_risk_for_each_gap_assessment():
     risk_scorer = Mock()
     risk_scorer.score.return_value = risk_assessment
 
+    explanation_service = Mock()
+    explanation_service.explain.return_value = explanation
+
     service = build_service(
         requirement_extractor=requirement_extractor,
         policy_extractor=policy_extractor,
         gap_comparer=gap_comparer,
         confidence_scorer=confidence_scorer,
         risk_scorer=risk_scorer,
+        explanation_service=explanation_service,
     )
 
     result = service.analyze(
@@ -312,6 +341,7 @@ def test_analyze_scores_confidence_and_risk_for_each_gap_assessment():
     assert result.gap_assessments == [gap_assessment]
     assert result.confidence_assessments == [confidence_assessment]
     assert result.risk_assessments == [risk_assessment]
+    assert result.explanations == [explanation]
 
     confidence_scorer.score.assert_called_once_with(
         requirement,
@@ -325,4 +355,11 @@ def test_analyze_scores_confidence_and_risk_for_each_gap_assessment():
         confidence_assessment,
         regulatory_impact=RegulatoryImpact.HIGH,
         data_sensitivity=DataSensitivity.CONFIDENTIAL,
+    )
+
+    explanation_service.explain.assert_called_once_with(
+        requirement,
+        gap_assessment,
+        confidence_assessment,
+        risk_assessment,
     )
