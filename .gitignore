@@ -1,16 +1,43 @@
-.env
+# Python
 __pycache__/
 *.py[cod]
-.pytest_cache/
+*.pyo
+
+# Virtual environment
 .venv/
 venv/
+env/
 
-data/regulations/*
-data/policies/*
-data/processed/*
-data/faiss/*
+# Environment variables
+.env
+.env.*
 
-!data/regulations/.gitkeep
-!data/policies/.gitkeep
-!data/processed/.gitkeep
-!data/faiss/.gitkeep
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Testing and tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Application data
+*.db
+*.sqlite
+*.sqlite3
+uploads/
+temp/
+tmp/
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Model and cache files
+.cache/
+models/

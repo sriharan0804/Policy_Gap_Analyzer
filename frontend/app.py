@@ -1,554 +1,281 @@
-from __future__ import annotations
-
-import json
-import os
-from typing import Any
-
-import requests
 import streamlit as st
+import requests
 
 
-DEFAULT_API_URL = os.getenv("POLICY_GAP_API_URL", "http://127.0.0.1:8000")
-REQUEST_TIMEOUT_SECONDS = 600
-
-GAP_STATUS_LABELS = {
-    "fully_addressed": "Fully addressed",
-    "partially_addressed": "Partially addressed",
-    "not_addressed": "Not addressed",
-    "contradicted": "Contradicted",
-    "insufficient_evidence": "Insufficient evidence",
-}
-
-RISK_LABELS = {
-    "low": "Low",
-    "medium": "Medium",
-    "high": "High",
-    "critical": "Critical",
-}
-
-REVIEW_STATUS_OPTIONS = {
-    "Approve": "approved",
-    "Reject": "rejected",
-    "Needs revision": "needs_revision",
-}
-
-REVIEW_DECISION_OPTIONS = {
-    "Accept automated result": "accept_automated_result",
-    "Override gap status": "override_gap_status",
-    "Request more evidence": "request_more_evidence",
-    "Escalate": "escalate",
-}
-
-OVERRIDE_STATUS_OPTIONS = {
-    "Fully addressed": "fully_addressed",
-    "Partially addressed": "partially_addressed",
-    "Not addressed": "not_addressed",
-    "Contradicted": "contradicted",
-    "Insufficient evidence": "insufficient_evidence",
-}
+API_URL = "http://localhost:8000/analyze"
 
 
 st.set_page_config(
-    page_title="Policy Gap Analyzer",
+    page_title="Regulatory Policy Gap Analyzer",
     page_icon="📋",
     layout="wide",
 )
 
 
-@st.cache_data(show_spinner=False)
-def check_backend(api_url: str) -> tuple[bool, str]:
-    try:
-        response = requests.get(
-            f"{api_url.rstrip('/')}/health",
-            timeout=10,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        return payload.get("status") == "healthy", "Backend connected"
-    except requests.RequestException as exc:
-        return False, f"Backend unavailable: {exc}"
+def format_percentage(value: float) -> str:
+    return f"{value * 100:.1f}%"
 
 
-def api_error_message(response: requests.Response) -> str:
-    try:
-        payload = response.json()
-    except ValueError:
-        return response.text or f"HTTP {response.status_code}"
-
-    detail = payload.get("detail") if isinstance(payload, dict) else None
-    if isinstance(detail, list):
-        return "; ".join(str(item) for item in detail)
-    return str(detail or payload)
-
-
-def post_analysis(
-    api_url: str,
-    regulatory_file: Any,
-    policy_file: Any,
-) -> dict[str, Any]:
-    files = {
-        "regulatory_document": (
-            regulatory_file.name,
-            regulatory_file.getvalue(),
-            "application/pdf",
-        ),
-        "policy_document": (
-            policy_file.name,
-            policy_file.getvalue(),
-            "application/pdf",
-        ),
+def risk_badge(risk_level: str) -> str:
+    badges = {
+        "low": "🟢 Low",
+        "medium": "🟡 Medium",
+        "high": "🟠 High",
+        "critical": "🔴 Critical",
     }
 
-    response = requests.post(
-        f"{api_url.rstrip('/')}/analyze",
-        files=files,
-        timeout=REQUEST_TIMEOUT_SECONDS,
-    )
-
-    if not response.ok:
-        raise RuntimeError(api_error_message(response))
-
-    return response.json()
-
-
-def fetch_report(api_url: str, analysis_id: str) -> dict[str, Any]:
-    response = requests.get(
-        f"{api_url.rstrip('/')}/analyses/{analysis_id}/report",
-        timeout=60,
-    )
-    if not response.ok:
-        raise RuntimeError(api_error_message(response))
-    return response.json()
-
-
-def fetch_reviews(api_url: str, analysis_id: str) -> list[dict[str, Any]]:
-    response = requests.get(
-        f"{api_url.rstrip('/')}/analyses/{analysis_id}/reviews",
-        timeout=30,
-    )
-    if not response.ok:
-        raise RuntimeError(api_error_message(response))
-    return response.json().get("reviews", [])
-
-
-def complete_review(
-    api_url: str,
-    analysis_id: str,
-    review_id: str,
-    payload: dict[str, Any],
-) -> dict[str, Any]:
-    response = requests.put(
-        f"{api_url.rstrip('/')}/analyses/{analysis_id}/reviews/{review_id}",
-        json=payload,
-        timeout=60,
-    )
-    if not response.ok:
-        raise RuntimeError(api_error_message(response))
-    return response.json()
-
-
-def normalize_percentage(value: Any) -> str:
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return "—"
-
-    if 0 <= number <= 1:
-        number *= 100
-    return f"{number:.1f}%"
-
-
-def status_label(value: str | None) -> str:
-    if not value:
-        return "Unknown"
-    return GAP_STATUS_LABELS.get(value, value.replace("_", " ").title())
-
-
-def risk_label(value: str | None) -> str:
-    if not value:
-        return "Unknown"
-    return RISK_LABELS.get(value, value.replace("_", " ").title())
-
-
-def report_from_state() -> dict[str, Any]:
-    payload = st.session_state.get("report_payload") or {}
-    return payload.get("compliance_report") or {}
-
-
-def exports_from_state() -> dict[str, Any]:
-    payload = st.session_state.get("report_payload") or {}
-    return payload.get("report_exports") or {}
-
-
-def refresh_reviewed_data(api_url: str, analysis_id: str) -> None:
-    report_payload = fetch_report(api_url, analysis_id)
-    reviews = fetch_reviews(api_url, analysis_id)
-    st.session_state.report_payload = report_payload
-    st.session_state.reviews = reviews
-
-
-def render_summary(report: dict[str, Any]) -> None:
-    summary = report.get("summary") or {}
-
-    first_row = st.columns(4)
-    first_row[0].metric("Requirements", summary.get("total_requirements", 0))
-    first_row[1].metric(
-        "Compliance score",
-        normalize_percentage(summary.get("compliance_score")),
-    )
-    first_row[2].metric(
-        "High / critical risk",
-        int(summary.get("high_risk_count", 0) or 0)
-        + int(summary.get("critical_risk_count", 0) or 0),
-    )
-    first_row[3].metric(
-        "Human reviews",
-        summary.get("human_review_required_count", 0),
-    )
-
-    second_row = st.columns(5)
-    second_row[0].metric(
-        "Fully addressed",
-        summary.get("fully_addressed_count", 0),
-    )
-    second_row[1].metric(
-        "Partially addressed",
-        summary.get("partially_addressed_count", 0),
-    )
-    second_row[2].metric(
-        "Not addressed",
-        summary.get("not_addressed_count", 0),
-    )
-    second_row[3].metric(
-        "Contradicted",
-        summary.get("contradicted_count", 0),
-    )
-    second_row[4].metric(
-        "Insufficient evidence",
-        summary.get("insufficient_evidence_count", 0),
+    return badges.get(
+        risk_level.lower(),
+        risk_level.title(),
     )
 
 
-def render_findings(report: dict[str, Any]) -> None:
-    findings = report.get("requirement_reports") or []
-    if not findings:
-        st.info("No requirement findings were returned.")
-        return
+def status_badge(status: str) -> str:
+    badges = {
+        "fully_addressed": "✅ Fully Addressed",
+        "partially_addressed": "⚠️ Partially Addressed",
+        "not_addressed": "❌ Not Addressed",
+        "contradicted": "🚫 Contradicted",
+        "insufficient_evidence": "❓ Insufficient Evidence",
+    }
 
-    status_filter = st.multiselect(
-        "Filter by effective status",
-        options=sorted(
-            {item.get("effective_gap_status") for item in findings if item.get("effective_gap_status")}
-        ),
-        format_func=status_label,
+    return badges.get(
+        status.lower(),
+        status.replace("_", " ").title(),
     )
-
-    risk_filter = st.multiselect(
-        "Filter by risk",
-        options=sorted(
-            {item.get("risk_level") for item in findings if item.get("risk_level")}
-        ),
-        format_func=risk_label,
-    )
-
-    filtered = [
-        item
-        for item in findings
-        if (not status_filter or item.get("effective_gap_status") in status_filter)
-        and (not risk_filter or item.get("risk_level") in risk_filter)
-    ]
-
-    st.caption(f"Showing {len(filtered)} of {len(findings)} findings")
-
-    for index, finding in enumerate(filtered, start=1):
-        requirement_summary = finding.get("requirement_summary") or "Untitled requirement"
-        effective_status = finding.get("effective_gap_status")
-        risk = finding.get("risk_level")
-        title = (
-            f"{index}. {status_label(effective_status)} · "
-            f"{risk_label(risk)} risk — {requirement_summary[:110]}"
-        )
-
-        with st.expander(title, expanded=index == 1):
-            left, right = st.columns([2, 1])
-
-            with left:
-                st.markdown("**Regulatory requirement**")
-                st.write(requirement_summary)
-
-                st.markdown("**Relevant policy evidence**")
-                st.write(
-                    finding.get("policy_summary")
-                    or "No policy evidence identified."
-                )
-
-                st.markdown("**Gap explanation**")
-                st.write(finding.get("gap_reason") or "No explanation available.")
-
-                st.markdown("**Recommended action**")
-                st.write(
-                    finding.get("recommended_action")
-                    or "No recommendation available."
-                )
-
-            with right:
-                st.metric(
-                    "Confidence",
-                    normalize_percentage(finding.get("confidence_score")),
-                )
-                st.metric(
-                    "Risk",
-                    normalize_percentage(finding.get("risk_score")),
-                )
-                st.write(
-                    "**Automated status:**",
-                    status_label(finding.get("gap_status")),
-                )
-                st.write(
-                    "**Effective status:**",
-                    status_label(effective_status),
-                )
-                st.write(
-                    "**Review status:**",
-                    str(finding.get("review_status", "pending")).replace("_", " ").title(),
-                )
-                st.write(
-                    "**Human review required:**",
-                    "Yes" if finding.get("requires_human_review") else "No",
-                )
-
-            with st.popover("Technical details"):
-                st.write("**Confidence reason**")
-                st.write(finding.get("confidence_reason") or "—")
-                st.write("**Risk reason**")
-                st.write(finding.get("risk_reason") or "—")
-                st.json(finding)
-
-
-def render_reviews(api_url: str, analysis_id: str) -> None:
-    reviews = st.session_state.get("reviews") or []
-    if not reviews:
-        st.success("No human reviews are currently required.")
-        return
-
-    pending = [item for item in reviews if item.get("status") == "pending"]
-    completed = [item for item in reviews if item.get("status") != "pending"]
-
-    st.write(f"Pending: **{len(pending)}** · Completed: **{len(completed)}**")
-
-    for review in pending:
-        review_id = str(review.get("review_id"))
-        requirement_id = str(review.get("requirement_id"))
-
-        with st.expander(
-            f"Review requirement {requirement_id[:8]} · "
-            f"{status_label(review.get('original_gap_status'))}",
-            expanded=True,
-        ):
-            with st.form(f"review-form-{review_id}"):
-                status_display = st.selectbox(
-                    "Review outcome",
-                    list(REVIEW_STATUS_OPTIONS),
-                    key=f"status-{review_id}",
-                )
-                decision_display = st.selectbox(
-                    "Reviewer decision",
-                    list(REVIEW_DECISION_OPTIONS),
-                    key=f"decision-{review_id}",
-                )
-                reviewer_id = st.text_input(
-                    "Reviewer name or ID",
-                    value="prototype-reviewer",
-                    key=f"reviewer-{review_id}",
-                )
-                reviewer_notes = st.text_area(
-                    "Review notes",
-                    placeholder="Explain why this finding is accepted, overridden, escalated, or needs more evidence.",
-                    key=f"notes-{review_id}",
-                )
-
-                override_status = None
-                if REVIEW_DECISION_OPTIONS[decision_display] == "override_gap_status":
-                    override_display = st.selectbox(
-                        "New effective gap status",
-                        list(OVERRIDE_STATUS_OPTIONS),
-                        key=f"override-{review_id}",
-                    )
-                    override_status = OVERRIDE_STATUS_OPTIONS[override_display]
-
-                submitted = st.form_submit_button(
-                    "Submit review",
-                    type="primary",
-                    use_container_width=True,
-                )
-
-            if submitted:
-                if not reviewer_id.strip():
-                    st.error("Reviewer name or ID is required.")
-                else:
-                    payload: dict[str, Any] = {
-                        "status": REVIEW_STATUS_OPTIONS[status_display],
-                        "decision": REVIEW_DECISION_OPTIONS[decision_display],
-                        "reviewer_id": reviewer_id.strip(),
-                        "reviewer_notes": reviewer_notes.strip() or None,
-                        "overridden_gap_status": override_status,
-                    }
-                    try:
-                        with st.spinner("Saving review and rebuilding report..."):
-                            response = complete_review(
-                                api_url,
-                                analysis_id,
-                                review_id,
-                                payload,
-                            )
-                            st.session_state.report_payload = response
-                            st.session_state.reviews = fetch_reviews(api_url, analysis_id)
-                        st.success("Review saved. The report has been updated.")
-                        st.rerun()
-                    except RuntimeError as exc:
-                        st.error(str(exc))
-
-    if completed:
-        st.markdown("#### Completed reviews")
-        for review in completed:
-            label = str(review.get("status", "completed")).replace("_", " ").title()
-            with st.expander(
-                f"{label} · requirement {str(review.get('requirement_id'))[:8]}"
-            ):
-                st.json(review)
-
-
-def render_downloads(report: dict[str, Any], exports: dict[str, Any]) -> None:
-    json_export = exports.get("json") or report
-    csv_export = exports.get("csv") or ""
-
-    col1, col2 = st.columns(2)
-    col1.download_button(
-        "Download JSON report",
-        data=json.dumps(json_export, indent=2),
-        file_name="compliance_report.json",
-        mime="application/json",
-        use_container_width=True,
-    )
-    col2.download_button(
-        "Download CSV findings",
-        data=csv_export,
-        file_name="compliance_findings.csv",
-        mime="text/csv",
-        disabled=not bool(csv_export),
-        use_container_width=True,
-    )
-
-
-if "analysis_id" not in st.session_state:
-    st.session_state.analysis_id = None
-if "analysis_response" not in st.session_state:
-    st.session_state.analysis_response = None
-if "report_payload" not in st.session_state:
-    st.session_state.report_payload = None
-if "reviews" not in st.session_state:
-    st.session_state.reviews = []
 
 
 st.title("AI-Assisted Regulatory Policy Gap Analyzer")
-st.caption(
-    "Upload a regulation and an internal policy to identify coverage gaps, "
-    "risk, confidence, recommendations, and review decisions."
+
+st.write(
+    "Upload a regulatory document and an internal policy document "
+    "to identify compliance gaps."
 )
 
 with st.sidebar:
-    st.header("Connection")
-    api_url = st.text_input("FastAPI URL", value=DEFAULT_API_URL).rstrip("/")
-    connected, connection_message = check_backend(api_url)
-    if connected:
-        st.success(connection_message)
-    else:
-        st.error(connection_message)
+    st.header("Analysis Settings")
 
-    if st.button("Clear current analysis", use_container_width=True):
-        st.session_state.analysis_id = None
-        st.session_state.analysis_response = None
-        st.session_state.report_payload = None
-        st.session_state.reviews = []
-        st.rerun()
-
-st.markdown("### Analyze documents")
-with st.form("analysis-form"):
-    upload_left, upload_right = st.columns(2)
-    with upload_left:
-        regulatory_file = st.file_uploader(
-            "Regulatory document",
-            type=["pdf"],
-            help="Upload the regulation, standard, or compliance source document.",
-        )
-    with upload_right:
-        policy_file = st.file_uploader(
-            "Internal policy document",
-            type=["pdf"],
-            help="Upload the policy document to compare against the regulation.",
-        )
-
-    analyze_clicked = st.form_submit_button(
-        "Analyze documents",
-        type="primary",
-        use_container_width=True,
-        disabled=not connected,
+    api_url = st.text_input(
+        "Backend API URL",
+        value=API_URL,
     )
 
+    st.info(
+        "Start the FastAPI backend before running the analysis."
+    )
+
+
+regulatory_document = st.file_uploader(
+    "Upload regulatory document",
+    type=["pdf"],
+    key="regulatory_document",
+)
+
+policy_document = st.file_uploader(
+    "Upload internal policy document",
+    type=["pdf"],
+    key="policy_document",
+)
+
+
+analyze_clicked = st.button(
+    "Analyze Documents",
+    type="primary",
+    use_container_width=True,
+)
+
+
 if analyze_clicked:
-    if regulatory_file is None or policy_file is None:
-        st.warning("Upload both PDF documents before starting the analysis.")
+    if regulatory_document is None:
+        st.error("Please upload a regulatory PDF.")
+
+    elif policy_document is None:
+        st.error("Please upload an internal policy PDF.")
+
     else:
+        files = {
+            "regulatory_document": (
+                regulatory_document.name,
+                regulatory_document.getvalue(),
+                "application/pdf",
+            ),
+            "policy_document": (
+                policy_document.name,
+                policy_document.getvalue(),
+                "application/pdf",
+            ),
+        }
+
         try:
             with st.spinner(
-                "Parsing PDFs, retrieving evidence, scoring gaps, and building the report..."
+                "Analyzing documents. This may take a moment..."
             ):
-                analysis_response = post_analysis(
+                response = requests.post(
                     api_url,
-                    regulatory_file,
-                    policy_file,
+                    files=files,
+                    timeout=300,
                 )
-                analysis_id = analysis_response["analysis_id"]
-                st.session_state.analysis_id = analysis_id
-                st.session_state.analysis_response = analysis_response
-                st.session_state.report_payload = analysis_response
-                st.session_state.reviews = (
-                    analysis_response.get("human_review", {}).get("reviews", [])
-                )
-            st.success("Analysis completed successfully.")
-        except (RuntimeError, KeyError) as exc:
-            st.error(f"Analysis failed: {exc}")
 
-analysis_id = st.session_state.get("analysis_id")
-if analysis_id:
+            if response.status_code != 200:
+                try:
+                    error_detail = response.json().get(
+                        "detail",
+                        response.text,
+                    )
+                except ValueError:
+                    error_detail = response.text
+
+                st.error(
+                    f"Analysis failed: {error_detail}"
+                )
+
+            else:
+                result = response.json()
+                st.session_state["analysis_result"] = result
+
+        except requests.exceptions.ConnectionError:
+            st.error(
+                "Could not connect to the backend. "
+                "Make sure FastAPI is running on port 8000."
+            )
+
+        except requests.exceptions.Timeout:
+            st.error(
+                "The analysis request timed out."
+            )
+
+        except requests.exceptions.RequestException as exc:
+            st.error(
+                f"Request failed: {exc}"
+            )
+
+
+result = st.session_state.get("analysis_result")
+
+if result:
+    summary = result["summary"]
+    findings = result["findings"]
+
     st.divider()
-    st.caption(f"Analysis ID: `{analysis_id}`")
+    st.subheader("Analysis Summary")
 
-    if st.button("Refresh reviewed report"):
-        try:
-            with st.spinner("Refreshing report..."):
-                refresh_reviewed_data(api_url, analysis_id)
-            st.success("Report refreshed.")
-            st.rerun()
-        except RuntimeError as exc:
-            st.error(str(exc))
+    first_row = st.columns(4)
 
-    report = report_from_state()
-    exports = exports_from_state()
+    first_row[0].metric(
+        "Compliance Score",
+        format_percentage(
+            summary["compliance_score"]
+        ),
+    )
 
-    tabs = st.tabs(["Summary", "Findings", "Human review", "Downloads", "Raw response"])
+    first_row[1].metric(
+        "Total Requirements",
+        summary["total_requirements"],
+    )
 
-    with tabs[0]:
-        render_summary(report)
+    first_row[2].metric(
+        "Fully Addressed",
+        summary["fully_addressed_count"],
+    )
 
-    with tabs[1]:
-        render_findings(report)
+    first_row[3].metric(
+        "Partially Addressed",
+        summary["partially_addressed_count"],
+    )
 
-    with tabs[2]:
-        render_reviews(api_url, analysis_id)
+    second_row = st.columns(4)
 
-    with tabs[3]:
-        render_downloads(report, exports)
+    second_row[0].metric(
+        "Not Addressed",
+        summary["not_addressed_count"],
+    )
 
-    with tabs[4]:
-        st.json(st.session_state.get("report_payload") or {})
+    second_row[1].metric(
+        "Contradicted",
+        summary["contradicted_count"],
+    )
+
+    second_row[2].metric(
+        "High Risk",
+        summary["high_risk_count"],
+    )
+
+    second_row[3].metric(
+        "Human Review Required",
+        summary["human_review_required_count"],
+    )
+
+    st.divider()
+    st.subheader("Compliance Findings")
+
+    for index, finding in enumerate(findings, start=1):
+        title = (
+            f"{index}. "
+            f"{status_badge(finding['effective_gap_status'])}"
+            f" — {risk_badge(finding['risk_level'])}"
+        )
+
+        with st.expander(
+            title,
+            expanded=index == 1,
+        ):
+            st.markdown("#### Regulatory Requirement")
+            st.write(
+                finding["requirement_summary"]
+            )
+
+            st.markdown("#### Internal Policy Evidence")
+            st.write(
+                finding["policy_summary"]
+            )
+
+            detail_columns = st.columns(3)
+
+            detail_columns[0].metric(
+                "Confidence",
+                format_percentage(
+                    finding["confidence_score"]
+                ),
+                finding["confidence_level"].title(),
+            )
+
+            detail_columns[1].metric(
+                "Risk Score",
+                format_percentage(
+                    finding["risk_score"]
+                ),
+                finding["risk_level"].title(),
+            )
+
+            detail_columns[2].metric(
+                "Review Status",
+                finding["review_status"].title(),
+            )
+
+            st.markdown("#### Gap Explanation")
+            st.warning(
+                finding["gap_reason"]
+            )
+
+            st.markdown("#### Recommended Action")
+            st.success(
+                finding["recommended_action"]
+            )
+
+            if finding["requires_human_review"]:
+                st.info(
+                    "This finding requires human review."
+                )
+
+            st.caption(
+                f"Requirement ID: "
+                f"{finding['requirement_id']}"
+            )
+
+    st.divider()
+
+    st.caption(
+        f"Analysis ID: {result['analysis_id']} | "
+        f"Report ID: {result['report_id']} | "
+        f"Report Version: {result['report_version']}"
+    )

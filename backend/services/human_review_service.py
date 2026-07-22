@@ -35,7 +35,7 @@ class HumanReviewService(Protocol):
 
 
 class DeterministicHumanReviewService:
-    """Manages auditable human-review decisions for gap assessments."""
+    """Manage auditable human-review decisions."""
 
     _COMPLETED_STATUSES = {
         GapReviewStatus.APPROVED,
@@ -66,28 +66,42 @@ class DeterministicHumanReviewService:
         reviewer_notes: str | None = None,
         overridden_gap_status: GapStatus | None = None,
     ) -> GapHumanReview:
-        self._validate_transition(review, status)
+        reviewer_id = reviewer_id.strip()
+
+        if not reviewer_id:
+            raise ValueError("reviewer_id must not be empty.")
+
+        if reviewer_notes is not None:
+            reviewer_notes = reviewer_notes.strip() or None
+
+        self._validate_transition(
+            review=review,
+            new_status=status,
+        )
+
         self._validate_decision(
+            status=status,
             decision=decision,
             overridden_gap_status=overridden_gap_status,
         )
 
         return GapHumanReview(
-    review_id=review.review_id,
-    gap_assessment_id=review.gap_assessment_id,
-    requirement_id=review.requirement_id,
-    status=status,
-    decision=decision,
-    reviewer_id=reviewer_id,
-    reviewer_notes=reviewer_notes,
-    original_gap_status=review.original_gap_status,
-    overridden_gap_status=overridden_gap_status,
-    reviewed_at=datetime.now(timezone.utc),
-)
+            review_id=review.review_id,
+            gap_assessment_id=review.gap_assessment_id,
+            requirement_id=review.requirement_id,
+            status=status,
+            decision=decision,
+            reviewer_id=reviewer_id,
+            reviewer_notes=reviewer_notes,
+            original_gap_status=review.original_gap_status,
+            overridden_gap_status=overridden_gap_status,
+            reviewed_at=datetime.now(timezone.utc),
+        )
 
     @classmethod
     def _validate_transition(
         cls,
+        *,
         review: GapHumanReview,
         new_status: GapReviewStatus,
     ) -> None:
@@ -98,13 +112,14 @@ class DeterministicHumanReviewService:
 
         if new_status not in cls._COMPLETED_STATUSES:
             raise ValueError(
-                "A completed review must be approved, rejected, "
-                "or marked as needing revision."
+                "The completed review status must be approved, "
+                "rejected, or needs_revision."
             )
 
     @staticmethod
     def _validate_decision(
         *,
+        status: GapReviewStatus,
         decision: GapReviewerDecision,
         overridden_gap_status: GapStatus | None,
     ) -> None:
@@ -113,7 +128,8 @@ class DeterministicHumanReviewService:
             and overridden_gap_status is None
         ):
             raise ValueError(
-                "overridden_gap_status is required for an override decision."
+                "overridden_gap_status is required when overriding "
+                "the automated gap status."
             )
 
         if (
@@ -123,4 +139,28 @@ class DeterministicHumanReviewService:
             raise ValueError(
                 "overridden_gap_status is only allowed for an "
                 "override decision."
+            )
+
+        if (
+            decision == GapReviewerDecision.ACCEPT_AUTOMATED_RESULT
+            and status != GapReviewStatus.APPROVED
+        ):
+            raise ValueError(
+                "Accepting the automated result requires approved status."
+            )
+
+        if (
+            decision == GapReviewerDecision.REQUEST_MORE_EVIDENCE
+            and status != GapReviewStatus.NEEDS_REVISION
+        ):
+            raise ValueError(
+                "Requesting more evidence requires needs_revision status."
+            )
+
+        if (
+            decision == GapReviewerDecision.ESCALATE
+            and status != GapReviewStatus.NEEDS_REVISION
+        ):
+            raise ValueError(
+                "Escalating a finding requires needs_revision status."
             )
